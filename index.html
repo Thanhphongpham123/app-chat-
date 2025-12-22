@@ -90,5 +90,22 @@
     </div>
 
     <script src="script.js"></script>
+    <script>
+        window.api.register('long','12345');
+        window.api.login('long','12345');
+        window.api.re_login('long','nlu_2055829137');
+        window.api.logout();
+        window.api.createRoom('ABC');
+        window.api.joinRoom('ABC');
+        window.api.getRoomChatMes('ABC',1);
+        window.api.getPeopleChatMes('ti',1);
+        window.api.sendChatRoom('abc','helooooo');
+        window.api.sendChatPeople('ti','helooooo');
+        window.api.checkUser('ti');
+        window.api.getUserList();
+        window.api.connect('ws://localhost:8080');
+        // Example raw send: replace the payload below with your actual data
+        window.api.sendRaw({ action: 'onchat', data: { event: 'CUSTOM', data: { example: 'payload' } } });
+    </script>
 </body>
 </html>

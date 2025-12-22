@@ -267,3 +267,86 @@ function attachEvents() {
 
 // Start
 init();
+
+// -----------------------------
+// WebSocket & API helper
+// -----------------------------
+let ws = null;
+let wsUrl = null;
+
+function connectWs(url) {
+    if (ws) ws.close();
+    wsUrl = url;
+    ws = new WebSocket(url);
+
+    ws.addEventListener('open', () => {
+        console.log('WebSocket connected to', url);
+    });
+
+    ws.addEventListener('message', (ev) => {
+        try {
+            const data = JSON.parse(ev.data);
+            console.log('WS message:', data);
+        } catch (e) {
+            console.log('WS raw message:', ev.data);
+        }
+    });
+
+    ws.addEventListener('close', (e) => {
+        console.log('WebSocket closed', e);
+    });
+
+    ws.addEventListener('error', (err) => {
+        console.error('WebSocket error', err);
+    });
+}
+
+function disconnectWs() {
+    if (ws) {
+        ws.close();
+        ws = null;
+        console.log('WebSocket disconnected');
+    }
+}
+
+function _sendOnChat(eventName, payload) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        console.warn('WebSocket not open. Call connectWs(url) first.');
+        return;
+    }
+    const msg = { action: 'onchat', data: { event: eventName, data: payload } };
+    ws.send(JSON.stringify(msg));
+    console.log('Sent', msg);
+}
+
+// Convenience API wrappers based on the provided examples
+const api = {
+    connect: connectWs,
+    disconnect: disconnectWs,
+    register: (user, pass) => _sendOnChat('REGISTER', { user, pass }),
+    login: (user, pass) => _sendOnChat('LOGIN', { user, pass }),
+    re_login: (user, code) => _sendOnChat('RE_LOGIN', { user, code }),
+    logout: () => _sendOnChat('LOGOUT', {}),
+    createRoom: (name) => _sendOnChat('CREATE_ROOM', { name }),
+    joinRoom: (name) => _sendOnChat('JOIN_ROOM', { name }),
+    getRoomChatMes: (name, page = 1) => _sendOnChat('GET_ROOM_CHAT_MES', { name, page }),
+    getPeopleChatMes: (name, page = 1) => _sendOnChat('GET_PEOPLE_CHAT_MES', { name, page }),
+    sendChatRoom: (to, mes) => _sendOnChat('SEND_CHAT', { type: 'room', to, mes }),
+    sendChatPeople: (to, mes) => _sendOnChat('SEND_CHAT', { type: 'people', to, mes }),
+    checkUser: (user) => _sendOnChat('CHECK_USER', { user }),
+    getUserList: () => _sendOnChat('GET_USER_LIST', {}),
+    // send arbitrary payload (object) as an onchat action
+    sendRaw: (obj) => {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+            console.warn('WebSocket not open. Call connectWs(url) first.');
+            return;
+        }
+        ws.send(JSON.stringify(obj));
+        console.log('Sent raw', obj);
+    }
+};
+
+// expose to console for quick testing
+window.api = api;
+
+console.log('API helpers loaded. Use window.api.connect(url) to connect.');
