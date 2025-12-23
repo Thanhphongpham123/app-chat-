@@ -419,3 +419,46 @@ body {
 .message-group {
     animation: slideIn 0.3s ease;
 }
+.connection-status {
+    position: fixed;
+    bottom: 12px;
+    left: 12px;
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    background: #f0f0f0;
+}
+
+.connection-status.online {
+    color: #31a24c;
+}
+
+.connection-status.offline {
+    color: #e53935;
+}
+
+.emoji-popup {
+    position: absolute;
+    bottom: 55px;
+    left: 45px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    padding: 8px;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+}
+
+.emoji-popup span {
+    cursor: pointer;
+    font-size: 20px;
+    text-align: center;
+}
+
+.emoji-popup span:hover {
+    transform: scale(1.2);
+}
+
