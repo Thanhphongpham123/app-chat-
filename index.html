@@ -8,6 +8,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+    <div id="connectionStatus" class="connection-status offline">
+        Disconnected
+    </div>
+
     <div class="messenger-container">
         <!-- Sidebar -->
         <div class="sidebar">
@@ -55,6 +59,9 @@
                         <div class="info">
                             <h3 id="chatName"></h3>
                             <span id="chatStatus" class="status">Đang hoạt động</span>
+                            <span id="typingStatus" class="status" style="display:none">
+                              Đang nhập...
+                            </span>
                         </div>
                     </div>
                     <div class="chat-actions">
@@ -80,6 +87,19 @@
                     <button class="icon-btn">
                         <i class="fas fa-plus"></i>
                     </button>
+
+                    <!-- Emoji -->
+                    <button class="icon-btn" id="emojiBtn" title="Emoji">
+                        😊
+                    </button>
+
+                    <!-- danh sách emoji-->
+                    <div id="emojiPopup" class="emoji-popup" style="display: none;">
+                        <span>😀</span><span>😂</span><span>😍</span><span>🥰</span><span>😘</span>
+                        <span>😎</span><span>😭</span><span>😡</span><span>👍</span><span>🙏</span>
+                        <span>❤️</span><span>🔥</span><span>🎉</span><span>💯</span><span>🤝</span>
+                    </div>
+
                     <input type="text" id="messageInput" placeholder="Aa" autocomplete="off">
                     <button class="icon-btn" id="sendBtn">
                         <i class="fas fa-paper-plane"></i>

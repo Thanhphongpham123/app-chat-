@@ -141,6 +141,9 @@ function openChat(chat) {
     renderConversations(allChats);
     
     messageInput.focus();
+
+    typingStatus.style.display = 'none';
+    clearTimeout(typingTimer);
 }
 
 // Render messages
@@ -180,6 +183,63 @@ function renderMessages(messages) {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
+function handleIncomingMessage(data) {
+    const chat = allChats.find(c => c.name === data.from);
+    if (!chat) return;
+
+    const msg = {
+        id: Date.now(),
+        sender: 'them',
+        text: data.text,
+        time: data.time || new Date().toLocaleTimeString('vi-VN', {
+            hour: '2-digit',
+            minute: '2-digit'
+        })
+    };
+
+    chat.messages.push(msg);
+    chat.lastMessage = msg.text;
+    chat.timestamp = 'Bây giờ';
+
+    if (!currentChat || currentChat.name !== chat.name) {
+        chat.unread++;
+    } else {
+        renderMessages(chat.messages);
+    }
+
+    renderConversations(allChats);
+}
+
+let typingTimer;
+const typingStatus = document.getElementById('typingStatus');
+
+
+function handleTyping(data) {
+    if (!currentChat || data.from !== currentChat.name) return;
+
+    typingStatus.style.display = 'inline';
+
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(() => {
+        typingStatus.style.display = 'none';
+    }, 1500);
+}
+
+function updateUserStatus(username, online) {
+    const chat = allChats.find(c => c.name === username);
+    if (!chat) return;
+
+    chat.online = online;
+
+    if (currentChat && currentChat.name === username) {
+        chatStatus.textContent = online ? 'Đang hoạt động' : 'Không hoạt động';
+        chatStatus.className = `status ${online ? 'online' : ''}`;
+    }
+
+    renderConversations(allChats);
+}
+
+
 // Send message
 function sendMessage() {
     const text = messageInput.value.trim();
@@ -196,6 +256,8 @@ function sendMessage() {
     };
     
     currentChat.messages.push(msg);
+    window.api.sendChatPeople(currentChat.name, text);
+
     currentChat.lastMessage = text;
     currentChat.timestamp = 'Bây giờ';
     
@@ -259,10 +321,43 @@ function attachEvents() {
             sendMessage();
         }
     });
-    
+
+    messageInput.addEventListener('input', () => {
+        if (!currentChat) return;
+
+        window.api.sendRaw({
+            action: 'onchat',
+            data: { event: 'TYPING', data: { to: currentChat.name } }
+        });
+    });
+
+
     searchInput.addEventListener('input', (e) => {
         searchChats(e.target.value);
     });
+
+    const emojiBtn = document.getElementById('emojiBtn');
+    const emojiPopup = document.getElementById('emojiPopup');
+
+    emojiBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        emojiPopup.style.display =
+            emojiPopup.style.display === 'none' ? 'block' : 'none';
+    });
+
+    emojiPopup.addEventListener('click', (e) => {
+        if (e.target.tagName === 'SPAN') {
+            messageInput.value += e.target.textContent;
+            messageInput.focus();
+            emojiPopup.style.display = 'none';
+        }
+    });
+
+// Click ra ngoài thì đóng popup (giống Messenger)
+    document.addEventListener('click', () => {
+        emojiPopup.style.display = 'none';
+    });
+
 }
 
 // Start
@@ -281,19 +376,50 @@ function connectWs(url) {
 
     ws.addEventListener('open', () => {
         console.log('WebSocket connected to', url);
+        document.getElementById('connectionStatus').textContent = 'Connected';
+        document.getElementById('connectionStatus').className = 'connection-status online';
     });
 
     ws.addEventListener('message', (ev) => {
+        let msg;
         try {
-            const data = JSON.parse(ev.data);
-            console.log('WS message:', data);
-        } catch (e) {
-            console.log('WS raw message:', ev.data);
+            msg = JSON.parse(ev.data);
+        } catch {
+            return;
+        }
+
+        if (msg.action !== 'onchat') return;
+
+        const { event, data } = msg.data;
+
+        switch (event) {
+            case 'NEW_MESSAGE':
+                handleIncomingMessage(data);
+                break;
+
+            case 'TYPING':
+                handleTyping(data);
+                break;
+
+            case 'USER_ONLINE':
+                updateUserStatus(data.user, true);
+                break;
+
+            case 'USER_OFFLINE':
+                updateUserStatus(data.user, false);
+                break;
         }
     });
 
     ws.addEventListener('close', (e) => {
         console.log('WebSocket closed', e);
+        document.getElementById('connectionStatus').textContent = 'Disconnected';
+        document.getElementById('connectionStatus').className = 'connection-status offline';
+
+        const code = localStorage.getItem('reloginCode');
+        if (code) {
+            window.api.re_login('long', code);
+        }
     });
 
     ws.addEventListener('error', (err) => {
