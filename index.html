@@ -17,7 +17,11 @@
         <div class="sidebar">
             <!-- Header -->
             <div class="sidebar-header">
-                <h1>Chats</h1>
+                    <h1>Chats</h1>
+                    <div class="user-area" id="userArea">
+                        <span id="currentUserDisplay" class="current-user"></span>
+                        <button id="logoutBtn" class="icon-btn" style="display:none;">Đăng xuất</button>
+                    </div>
                 <div class="header-actions">
                     <button class="icon-btn" title="Cuộc trò chuyện mới">
                         <i class="fas fa-pen"></i>
@@ -109,23 +113,39 @@
         </div>
     </div>
 
+    <!-- Auth overlay (signup / login) -->
+    <div id="authOverlay" class="auth-overlay" style="display:none">
+        <div class="auth-card">
+            <div class="auth-tabs">
+                <button id="tabLogin" class="active">Đăng nhập</button>
+                <button id="tabRegister">Đăng ký</button>
+            </div>
+
+            <form id="loginForm" class="auth-form">
+                <label>Tài khoản</label>
+                <input id="loginUser" type="text" required>
+                <label>Mật khẩu</label>
+                <input id="loginPass" type="password" required>
+                <button type="submit">Đăng nhập</button>
+            </form>
+
+            <form id="registerForm" class="auth-form" style="display:none">
+                <label>Tài khoản</label>
+                <input id="regUser" type="text" required>
+                <label>Mật khẩu</label>
+                <input id="regPass" type="password" required>
+                <label>Xác nhận mật khẩu</label>
+                <input id="regPass2" type="password" required>
+                <button type="submit">Tạo tài khoản</button>
+            </form>
+
+            <div class="auth-note">Tài khoản lưu trên trình duyệt (localStorage). Không cần SQL.</div>
+        </div>
+    </div>
+
     <script src="script.js"></script>
     <script>
-        window.api.register('long','12345');
-        window.api.login('long','12345');
-        window.api.re_login('long','nlu_2055829137');
-        window.api.logout();
-        window.api.createRoom('ABC');
-        window.api.joinRoom('ABC');
-        window.api.getRoomChatMes('ABC',1);
-        window.api.getPeopleChatMes('ti',1);
-        window.api.sendChatRoom('abc','helooooo');
-        window.api.sendChatPeople('ti','helooooo');
-        window.api.checkUser('ti');
-        window.api.getUserList();
-        window.api.connect('ws://localhost:8080');
-        // Example raw send: replace the payload below with your actual data
-        window.api.sendRaw({ action: 'onchat', data: { event: 'CUSTOM', data: { example: 'payload' } } });
+        // Example usage: open auth overlay or check current user via console.
     </script>
 </body>
 </html>

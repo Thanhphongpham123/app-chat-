@@ -93,7 +93,127 @@ const chatStatus = document.getElementById('chatStatus');
 function init() {
     renderConversations(allChats);
     attachEvents();
+    wireAuthUI();
+    updateUserUI();
+    // if not logged in, show auth overlay
+    if (!getCurrentUser()) showAuthOverlay(true);
 }
+
+// -----------------------------
+// Client-side Auth (localStorage)
+// -----------------------------
+const AUTH_USERS_KEY = 'appChat_users';
+const AUTH_CURRENT_KEY = 'appChat_currentUser';
+
+function loadUsers() {
+    try {
+        return JSON.parse(localStorage.getItem(AUTH_USERS_KEY) || '[]');
+    } catch { return []; }
+}
+
+function saveUsers(list) {
+    localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(list));
+}
+
+function hashPw(pw) {
+    // simple client-side encoding (not secure) - sufficient for demo without SQL
+    return btoa(pw);
+}
+
+function createAccount(user, pass) {
+    const users = loadUsers();
+    if (users.find(u => u.user === user)) return { ok: false, error: 'Tài khoản đã tồn tại' };
+    users.push({ user, pass: hashPw(pass) });
+    saveUsers(users);
+    return { ok: true };
+}
+
+function loginAccount(user, pass) {
+    const users = loadUsers();
+    const u = users.find(x => x.user === user && x.pass === hashPw(pass));
+    if (!u) return { ok: false, error: 'Sai tài khoản hoặc mật khẩu' };
+    localStorage.setItem(AUTH_CURRENT_KEY, user);
+    return { ok: true };
+}
+
+function logoutAccount() {
+    localStorage.removeItem(AUTH_CURRENT_KEY);
+}
+
+function getCurrentUser() {
+    return localStorage.getItem(AUTH_CURRENT_KEY) || null;
+}
+
+function showAuthOverlay(show) {
+    const ov = document.getElementById('authOverlay');
+    if (!ov) return;
+    ov.style.display = show ? 'flex' : 'none';
+    document.querySelector('.messenger-container').style.filter = show ? 'blur(2px)' : 'none';
+}
+
+function updateUserUI() {
+    const u = getCurrentUser();
+    const display = document.getElementById('currentUserDisplay');
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (u) {
+        display.textContent = u;
+        logoutBtn.style.display = 'inline-block';
+    } else {
+        display.textContent = '';
+        logoutBtn.style.display = 'none';
+    }
+}
+
+// Wire auth UI
+function wireAuthUI() {
+    const tabLogin = document.getElementById('tabLogin');
+    const tabRegister = document.getElementById('tabRegister');
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+
+    tabLogin.addEventListener('click', () => {
+        tabLogin.classList.add('active');
+        tabRegister.classList.remove('active');
+        loginForm.style.display = '';
+        registerForm.style.display = 'none';
+    });
+
+    tabRegister.addEventListener('click', () => {
+        tabRegister.classList.add('active');
+        tabLogin.classList.remove('active');
+        registerForm.style.display = '';
+        loginForm.style.display = 'none';
+    });
+
+    loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const user = document.getElementById('loginUser').value.trim();
+        const pass = document.getElementById('loginPass').value;
+        const r = loginAccount(user, pass);
+        if (!r.ok) return alert(r.error);
+        showAuthOverlay(false);
+        updateUserUI();
+    });
+
+    registerForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const user = document.getElementById('regUser').value.trim();
+        const pass = document.getElementById('regPass').value;
+        const pass2 = document.getElementById('regPass2').value;
+        if (pass !== pass2) return alert('Mật khẩu xác nhận không khớp');
+        const r = createAccount(user, pass);
+        if (!r.ok) return alert(r.error);
+        alert('Tạo tài khoản thành công. Vui lòng đăng nhập.');
+        tabLogin.click();
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+        logoutAccount();
+        updateUserUI();
+        showAuthOverlay(true);
+    });
+}
+
 
 // Render conversations list
 function renderConversations(chats) {
