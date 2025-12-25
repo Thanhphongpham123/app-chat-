@@ -26,6 +26,9 @@
                     <button class="icon-btn" title="Cuộc trò chuyện mới">
                         <i class="fas fa-pen"></i>
                     </button>
+                    <button id="createGroupBtn" class="icon-btn" title="Tạo nhóm 3 thành viên">
+                        <i class="fas fa-users"></i>
+                    </button>
                     <button class="icon-btn" title="Cài đặt">
                         <i class="fas fa-ellipsis-h"></i>
                     </button>
@@ -140,6 +143,24 @@
             </form>
 
             <div class="auth-note">Tài khoản lưu trên trình duyệt (localStorage). Không cần SQL.</div>
+        </div>
+    </div>
+
+    <!-- Create Group Modal -->
+    <div id="createGroupModal" class="modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); align-items:center; justify-content:center;">
+        <div class="modal-card" style="background:#fff; padding:16px; width:320px; border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,0.2);">
+            <h3 style="margin-top:0">Tạo nhóm 3 thành viên</h3>
+            <div style="font-size:13px; color:#444; margin-bottom:8px">Chọn thành viên khác (hoặc dùng "Chọn tất cả")</div>
+            <div id="groupUsersList" style="max-height:180px; overflow:auto; border:1px solid #eee; padding:8px; border-radius:4px; margin-bottom:8px">
+                <!-- populated by JS -->
+            </div>
+            <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:8px"><input type="checkbox" id="selectAllGroupUsers"> Chọn tất cả thành viên</label>
+            <label style="font-size:13px">Tên nhóm (tùy chọn)</label>
+            <input id="groupNameInput" type="text" placeholder="Tên nhóm" style="width:100%; padding:8px; margin:6px 0 12px; box-sizing:border-box">
+            <div style="text-align:right">
+                <button id="cancelCreateGroup" class="icon-btn" style="margin-right:8px">Huỷ</button>
+                <button id="confirmCreateGroup" class="icon-btn">Tạo nhóm</button>
+            </div>
         </div>
     </div>
 

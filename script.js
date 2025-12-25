@@ -543,6 +543,96 @@ function searchChats(query) {
     renderConversations(filtered);
 }
 
+// Create a group chat (allows any number of members >= 2 including current user)
+function createGroup(members, groupName) {
+    const currentUser = getCurrentUser();
+    if (!currentUser) return alert('Vui lòng đăng nhập trước khi tạo nhóm');
+
+    // Ensure members is an array and contains current user
+    const uniqueMembers = Array.from(new Set(members.map(m => m.trim()).filter(Boolean)));
+    if (!uniqueMembers.includes(currentUser)) uniqueMembers.unshift(currentUser);
+
+    if (uniqueMembers.length < 2) return alert('Nhóm phải có ít nhất 2 thành viên (gồm bạn)');
+
+    const newChat = {
+        id: Date.now(),
+        name: groupName || `Nhóm: ${uniqueMembers.filter(m => m !== currentUser).join(', ')}`,
+        avatar: 'https://i.pravatar.cc/150?img=20',
+        lastMessage: 'Nhóm mới',
+        timestamp: 'Mới',
+        online: false,
+        unread: 0,
+        isGroup: true,
+        members: uniqueMembers,
+        messages: []
+    };
+
+    // add to top of chats and save
+    allChats.unshift(newChat);
+    saveUserChats(currentUser, allChats);
+    renderConversations(allChats);
+    openChat(newChat);
+}
+
+function createGroupPrompt() {
+    openCreateGroupModal();
+}
+
+// Modal-based group creation UI
+function openCreateGroupModal() {
+    const currentUser = getCurrentUser();
+    if (!currentUser) return alert('Vui lòng đăng nhập để tạo nhóm');
+
+    const modal = document.getElementById('createGroupModal');
+    const list = document.getElementById('groupUsersList');
+    const nameInput = document.getElementById('groupNameInput');
+    list.innerHTML = '';
+    nameInput.value = '';
+
+    const users = loadUsers().map(u => u.user).filter(u => u !== currentUser);
+    if (users.length < 1) return alert('Không đủ người dùng khác để tạo nhóm');
+
+    users.forEach(u => {
+        const id = `guser_${u}`;
+        const row = document.createElement('div');
+        row.style.padding = '6px 4px';
+        row.innerHTML = `<label style="display:flex; gap:8px; align-items:center"><input type="checkbox" id="${id}" value="${u}"> <span>${u}</span></label>`;
+        list.appendChild(row);
+    });
+
+    // wire select-all checkbox
+    const selectAll = document.getElementById('selectAllGroupUsers');
+    if (selectAll) {
+        selectAll.checked = false;
+        selectAll.addEventListener('change', () => {
+            const checkboxes = list.querySelectorAll('input[type=checkbox]');
+            checkboxes.forEach(cb => cb.checked = selectAll.checked);
+        });
+    }
+
+    modal.style.display = 'flex';
+
+    const cancel = document.getElementById('cancelCreateGroup');
+    const confirm = document.getElementById('confirmCreateGroup');
+
+    function onClose() {
+        modal.style.display = 'none';
+        cancel.removeEventListener('click', onClose);
+        confirm.removeEventListener('click', onConfirm);
+    }
+
+    function onConfirm() {
+        const checked = Array.from(list.querySelectorAll('input[type=checkbox]:checked')).map(c => c.value);
+        if (checked.length < 1) return alert('Vui lòng chọn ít nhất 1 thành viên (hoặc chọn tất cả)');
+        const groupName = nameInput.value.trim() || undefined;
+        createGroup([currentUser, ...checked], groupName);
+        onClose();
+    }
+
+    cancel.addEventListener('click', onClose);
+    confirm.addEventListener('click', onConfirm);
+}
+
 // Utility
 function escapeHtml(text) {
     const map = {
@@ -582,6 +672,14 @@ function attachEvents() {
 
     const emojiBtn = document.getElementById('emojiBtn');
     const emojiPopup = document.getElementById('emojiPopup');
+
+    const createGroupBtn = document.getElementById('createGroupBtn');
+    if (createGroupBtn) {
+        createGroupBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            createGroupPrompt();
+        });
+    }
 
     emojiBtn.addEventListener('click', (e) => {
         e.stopPropagation();
