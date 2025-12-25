@@ -87,7 +87,7 @@ function initializeDefaultAccounts() {
             updated = true;
         }
     });
-    
+
     if (updated) {
         saveUsers(users);
         console.log('Tài khoản mặc định đã được tạo: Long, Phong, Toản, Buu (mật khẩu: 123)');
@@ -348,9 +348,14 @@ function renderMessages(messages) {
     groups.forEach(group => {
         const msgDiv = document.createElement('div');
         msgDiv.className = `message-group ${group[0].sender === 'you' ? 'sent' : 'received'}`;
+<<<<<<< Updated upstream
         
         group.forEach(msg => {
             // wrapper để hover icon
+=======
+
+        group.forEach(msg => {
+>>>>>>> Stashed changes
             const bubbleWrapper = document.createElement('div');
             bubbleWrapper.className = 'message-bubble-wrapper';
             bubbleWrapper.style.position = 'relative';
@@ -438,7 +443,11 @@ function renderMessages(messages) {
         const timeDiv = document.createElement('div');
         timeDiv.className = 'message-time';
         timeDiv.textContent = group[group.length - 1].time;
+<<<<<<< Updated upstream
         
+=======
+
+>>>>>>> Stashed changes
         msgDiv.appendChild(timeDiv);
         
         messagesContainer.appendChild(msgDiv);
