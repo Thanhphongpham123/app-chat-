@@ -353,12 +353,33 @@ function renderMessages(messages) {
         group.forEach(msg => {
             html += `<div class="message-bubble">${escapeHtml(msg.text)}</div>`;
         });
-        
+
+        if (group[0].sender === 'you') {
+            const statusDiv = document.createElement('div');
+            statusDiv.className = 'message-status';
+            const lastMsg = group[group.length - 1];
+            switch (lastMsg.status) {
+                case 'sending':
+                    statusDiv.textContent = 'Đang gửi...';
+                    break;
+                case 'sent':
+                    statusDiv.textContent = 'Đã gửi';
+                    break;
+                case 'received':
+                    statusDiv.textContent = 'Đã nhận';
+                    break;
+                case 'error':
+                    statusDiv.textContent = 'Gửi lỗi';
+                    break;
+            }
+            msgDiv.appendChild(statusDiv);
+        }
+
         const timeDiv = document.createElement('div');
         timeDiv.className = 'message-time';
         timeDiv.textContent = group[group.length - 1].time;
         
-        msgDiv.innerHTML = html;
+        msgDiv.innerHTML += html;
         msgDiv.appendChild(timeDiv);
         
         messagesContainer.appendChild(msgDiv);
@@ -443,28 +464,47 @@ function sendMessage() {
         id: Date.now(),
         sender: 'you',
         text: text,
-        time: time
+        time: time,
+        status: 'sending' // trạng thái mới
     };
     
     currentChat.messages.push(msg);
-    window.api.sendChatPeople(currentChat.name, text);
 
     currentChat.lastMessage = text;
     currentChat.timestamp = 'Bây giờ';
-    
+
     renderMessages(currentChat.messages);
     renderConversations(allChats);
-    
+
+    messageInput.value = '';
+
     // Lưu chats của user hiện tại
     const currentUser = getCurrentUser();
     if (currentUser) {
         saveUserChats(currentUser, allChats);
     }
-    
-    messageInput.value = '';
-    
+
+    setTimeout(() => {
+        const success = Math.random() < 0.8;
+        if (success) {
+            msg.status = 'sent';
+            renderMessages(currentChat.messages);
+            setTimeout(() => {
+                msg.status = 'received';
+                renderMessages(currentChat.messages);
+            }, 1000);
+        } else {
+            msg.status = 'error';
+            renderMessages(currentChat.messages);
+        }
+    }, 1000);
+
     // Auto reply
     setTimeout(() => {
+
+        msg.status = 'sent'; // chuyển trạng thái
+        renderMessages(currentChat.messages);
+
         const responses = [
             'Đúng thế!',
             'OK bạn',
