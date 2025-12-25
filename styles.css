@@ -490,3 +490,11 @@ body {
     transform: scale(1.2);
 }
 
+.message-status {
+    font-size: 10px;
+    color: gray;
+    text-align: right;
+    margin-top: 2px;
+}
+
+
