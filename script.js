@@ -349,9 +349,69 @@ function renderMessages(messages) {
         const msgDiv = document.createElement('div');
         msgDiv.className = `message-group ${group[0].sender === 'you' ? 'sent' : 'received'}`;
         
-        let html = '';
         group.forEach(msg => {
-            html += `<div class="message-bubble">${escapeHtml(msg.text)}</div>`;
+            // wrapper để hover icon
+            const bubbleWrapper = document.createElement('div');
+            bubbleWrapper.className = 'message-bubble-wrapper';
+            bubbleWrapper.style.position = 'relative';
+
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            bubble.textContent = msg.text;
+
+            // icon mneu 3 chấm
+            const icon = document.createElement('div');
+            icon.className = 'message-actions-icon';
+            icon.textContent = '⋯';
+            bubbleWrapper.appendChild(icon);
+
+            // menu
+            const menu = document.createElement('div');
+            menu.className = 'message-actions-menu';
+            menu.innerHTML = `
+                <div class="copy-msg">Copy</div>
+                <div class="recall-msg">Thu hồi</div>
+                <div class="delete-msg">Xóa</div>
+            `;
+            bubbleWrapper.appendChild(menu);
+
+            // click icon hiện menu
+            icon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+            });
+
+            // click ra ngoài đóng menu
+            document.addEventListener('click', () => {
+                menu.style.display = 'none';
+            });
+
+            // các chức năng menu
+            menu.querySelector('.copy-msg').addEventListener('click', () => {
+                navigator.clipboard.writeText(msg.text);
+                menu.style.display = 'none';
+            });
+            menu.querySelector('.recall-msg').addEventListener('click', () => {
+                // Thu hồi: xóa tin nhắn và thông báo "Tin nhắn đã thu hồi"
+                msg.text = 'Tin nhắn đã thu hồi';
+                renderMessages(messages);
+            });
+            menu.querySelector('.delete-msg').addEventListener('click', () => {
+                const index = messages.indexOf(msg);
+                if (index > -1) messages.splice(index, 1);
+                renderMessages(messages);
+            });
+
+            bubbleWrapper.addEventListener('mouseenter', () => {
+                icon.style.display = 'block'; // hiện icon
+                if (icon.hideTimeout) clearTimeout(icon.hideTimeout);
+                icon.hideTimeout = setTimeout(() => {
+                    icon.style.display = 'none'; // 2 giây sau ẩn
+                }, 800);
+            });
+
+            bubbleWrapper.appendChild(bubble);
+            msgDiv.appendChild(bubbleWrapper);
         });
 
         if (group[0].sender === 'you') {
@@ -379,7 +439,6 @@ function renderMessages(messages) {
         timeDiv.className = 'message-time';
         timeDiv.textContent = group[group.length - 1].time;
         
-        msgDiv.innerHTML += html;
         msgDiv.appendChild(timeDiv);
         
         messagesContainer.appendChild(msgDiv);
