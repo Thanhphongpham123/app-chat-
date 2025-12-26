@@ -428,7 +428,12 @@ function renderMessages(messages) {
                     statusDiv.textContent = 'Đã nhận';
                     break;
                 case 'error':
-                    statusDiv.textContent = 'Gửi lỗi';
+                    statusDiv.innerHTML = `
+                        Gửi lỗi 
+                        <button class="retry-btn" style="margin-left:6px; cursor:pointer;">Thử lại</button>
+                    `;
+                    const retryBtn = statusDiv.querySelector('.retry-btn');
+                    retryBtn.addEventListener('click', () => retryMessage(lastMsg));
                     break;
             }
             msgDiv.appendChild(statusDiv);
@@ -446,6 +451,14 @@ function renderMessages(messages) {
     // Scroll to bottom
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
+
+function retryMessage(msg) {
+    msg.status = 'sending';
+    renderMessages(currentChat.messages);
+
+    simulateSendResult(msg);
+}
+
 
 function handleIncomingMessage(data) {
     const chat = allChats.find(c => c.name === data.from);
@@ -536,6 +549,8 @@ function sendMessage() {
 
     messageInput.value = '';
 
+    simulateSendResult(msg);
+
     // Lưu chats của user hiện tại
     const currentUser = getCurrentUser();
     if (currentUser) {
@@ -591,6 +606,25 @@ function sendMessage() {
         }
     }, 800);
 }
+
+// gia lap khi gửi tin nhan cần retry
+function simulateSendResult(msg) {
+    // giả lập network delay
+    setTimeout(() => {
+
+        // 30% thất bại
+        const failed = Math.random() < 0.3;
+
+        if (failed) {
+            msg.status = 'failed';
+        } else {
+            msg.status = 'sent';
+        }
+
+        renderMessages(currentChat.messages);
+    }, 1000);
+}
+
 
 // Search
 function searchChats(query) {
