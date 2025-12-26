@@ -329,6 +329,228 @@ function openChat(chat) {
 
     typingStatus.style.display = 'none';
     clearTimeout(typingTimer);
+
+    // info button always visible; panel will show group-specific controls
+    const infoBtn = document.getElementById('infoBtn');
+    if (infoBtn) infoBtn.style.display = 'inline-flex';
+}
+
+// Open info panel (shows group avatar controls when current chat is a group)
+function openChangeAvatarModal() {
+    try {
+        console.log('openChangeAvatarModal called', { currentChat });
+        const currentUser = getCurrentUser();
+        if (!currentUser) return alert('Vui lòng đăng nhập');
+        const isGroup = !!(currentChat && currentChat.isGroup);
+    const panel = document.getElementById('infoPanel');
+    if (!panel) {
+        console.error('infoPanel element not found in DOM');
+        alert('Lỗi: không tìm thấy info panel trong trang. Mở console để biết thêm chi tiết.');
+        return;
+    }
+            // apply fallback inline styles to ensure visibility if external CSS didn't load
+            panel.style.position = panel.style.position || 'fixed';
+            panel.style.top = panel.style.top || '0';
+            panel.style.right = panel.style.right || '0';
+            panel.style.bottom = panel.style.bottom || '0';
+            panel.style.width = panel.style.width || '360px';
+            panel.style.background = panel.style.background || '#fff';
+            panel.style.zIndex = panel.style.zIndex || '2000';
+            panel.style.boxShadow = panel.style.boxShadow || '-8px 0 24px rgba(0,0,0,0.08)';
+    const input = document.getElementById('changeAvatarInput');
+    const fileInput = document.getElementById('changeAvatarFile');
+    const preview = document.getElementById('changeAvatarPreview');
+    const defaultGrid = document.getElementById('defaultAvatars');
+    const addImageBtn = document.getElementById('addImageBtn');
+    const updateAvatarBtn = document.getElementById('updateAvatarBtn');
+    const membersList = document.getElementById('panelMembersList');
+    input.value = (currentChat && currentChat.avatar) || '';
+    preview.src = (currentChat && currentChat.avatar) || '';
+    if (fileInput) fileInput.value = '';
+    if (membersList) {
+        membersList.innerHTML = '';
+        if (isGroup) {
+            (currentChat.members || []).forEach(m => {
+                const d = document.createElement('div');
+                d.textContent = m;
+                membersList.appendChild(d);
+            });
+        } else {
+            membersList.textContent = 'Thông tin chỉ khả dụng cho cuộc trò chuyện nhóm.';
+        }
+    }
+    panel.style.display = 'block';
+
+    const closeBtn = document.getElementById('closeInfoPanel');
+    const confirm = document.getElementById('confirmChangeAvatar');
+
+    let avatarProcessTimer = null;
+
+    function close() {
+        try {
+            panel.style.display = 'none';
+            if (closeBtn) closeBtn.removeEventListener('click', onCancel);
+            if (confirm) confirm.removeEventListener('click', onConfirm);
+            if (input) input.removeEventListener('input', onInput);
+            if (fileInput) fileInput.removeEventListener('change', onFile);
+            if (addImageBtn) addImageBtn.removeEventListener('click', onAddImage);
+            if (updateAvatarBtn) updateAvatarBtn.removeEventListener('click', onConfirm);
+            if (avatarProcessTimer) { clearTimeout(avatarProcessTimer); avatarProcessTimer = null; }
+            // cleanup default avatars listeners
+            if (defaultGrid) {
+                Array.from(defaultGrid.children).forEach(img => {
+                    if (img._handler) img.removeEventListener('click', img._handler);
+                    delete img._handler;
+                });
+                defaultGrid.innerHTML = '';
+            }
+        } catch (err) {
+            console.error('Error during close():', err);
+        }
+    }
+
+    function onCancel() { close(); }
+
+    function onInput() {
+        const val = (input.value || '').trim();
+        if (!val) { preview.src = ''; return; }
+        if (avatarProcessTimer) clearTimeout(avatarProcessTimer);
+        avatarProcessTimer = setTimeout(() => {
+            processImageToSquare(val, 256, (processed, err) => {
+                if (processed) {
+                    preview.src = processed;
+                    input.value = processed;
+                } else {
+                    console.warn('processImageToSquare failed for URL, using original value', err);
+                    preview.src = val;
+                }
+            });
+        }, 250);
+    }
+
+    function onFile(e) {
+        const f = e.target.files && e.target.files[0];
+        if (!f) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const dataUrl = ev.target.result;
+            // process and resize/crop to square before setting
+            processImageToSquare(dataUrl, 256, (processed, err) => {
+                if (processed) {
+                    preview.src = processed;
+                    input.value = processed;
+                } else {
+                    console.warn('Failed to process uploaded image, using original', err);
+                    preview.src = dataUrl;
+                    input.value = dataUrl;
+                }
+                // clear selection of default avatars
+                if (defaultGrid) Array.from(defaultGrid.children).forEach(c => c.classList.remove('selected'));
+            });
+        };
+        reader.readAsDataURL(f);
+    }
+
+    function onAddImage(e) {
+        e.preventDefault();
+        if (fileInput) fileInput.click();
+    }
+
+    function onConfirm() {
+        if (!isGroup) return alert('Chỉ nhóm mới có thể thay avatar');
+        const url = input.value.trim();
+        if (!url) return alert('Nhập URL ảnh hợp lệ');
+        // update current chat avatar
+        currentChat.avatar = url;
+        // update UI
+        const chatAvatarEl = document.getElementById('chatAvatar');
+        if (chatAvatarEl) chatAvatarEl.src = url;
+        renderConversations(allChats);
+        // save
+        const cu = getCurrentUser();
+        if (cu) saveUserChats(cu, allChats);
+        close();
+    }
+
+    if (closeBtn) closeBtn.addEventListener('click', onCancel);
+    if (confirm) confirm.addEventListener('click', onConfirm);
+    input.addEventListener('input', onInput);
+    if (fileInput) fileInput.addEventListener('change', onFile);
+
+    // populate default avatars
+    if (defaultGrid) {
+        const DEFAULT_AVATARS = [
+            'https://i.pravatar.cc/150?img=21',
+            'https://i.pravatar.cc/150?img=22',
+            'https://i.pravatar.cc/150?img=23',
+            'https://i.pravatar.cc/150?img=24',
+            'https://i.pravatar.cc/150?img=25',
+            'https://i.pravatar.cc/150?img=26',
+            'https://i.pravatar.cc/150?img=27',
+            'https://i.pravatar.cc/150?img=28'
+        ];
+
+        DEFAULT_AVATARS.forEach(url => {
+            const el = document.createElement('img');
+            el.src = url;
+            el.alt = 'avatar';
+            el.className = 'default-avatar';
+            el.style.cursor = 'pointer';
+
+            const handler = (e) => {
+                // mark selection
+                Array.from(defaultGrid.children).forEach(c => c.classList.remove('selected'));
+                el.classList.add('selected');
+                input.value = url;
+                preview.src = url;
+            };
+            el._handler = handler;
+            el.addEventListener('click', handler);
+            defaultGrid.appendChild(el);
+        });
+    }
+
+    // wire add image button
+    if (addImageBtn && fileInput) {
+        addImageBtn.addEventListener('click', onAddImage);
+    }
+    if (updateAvatarBtn) {
+        updateAvatarBtn.addEventListener('click', onConfirm);
+    }
+    } catch (err) {
+        console.error('openChangeAvatarModal error', err);
+        alert('Lỗi khi mở panel. Xem console để biết chi tiết.');
+    }
+}
+
+// Process an image source (dataURL or URL) into a square dataURL of given size.
+// callback(resultDataUrl, err)
+function processImageToSquare(src, size, callback) {
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = function() {
+        try {
+            const min = Math.min(img.width, img.height);
+            const sx = Math.max(0, Math.floor((img.width - min) / 2));
+            const sy = Math.max(0, Math.floor((img.height - min) / 2));
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            // draw center-cropped image to canvas resized to size x size
+            ctx.drawImage(img, sx, sy, min, min, 0, 0, size, size);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+            callback(dataUrl);
+        } catch (err) {
+            console.warn('processImageToSquare error during draw', err);
+            callback(null, err);
+        }
+    };
+    img.onerror = function(err) {
+        console.warn('processImageToSquare load error', err);
+        callback(null, err);
+    };
+    img.src = src;
 }
 
 // Render messages
@@ -770,6 +992,14 @@ function attachEvents() {
         createGroupBtn.addEventListener('click', (e) => {
             e.preventDefault();
             createGroupPrompt();
+        });
+    }
+
+    const infoBtn = document.getElementById('infoBtn');
+    if (infoBtn) {
+        infoBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            openChangeAvatarModal();
         });
     }
 

@@ -484,6 +484,86 @@ body {
 @media (max-width: 480px) {
     .modal-card { width: 100%; padding: 12px; }
 }
+
+/* change avatar preview tweaks */
+#changeAvatarInput {
+    width: calc(100% - 0px);
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid #e8e8e8;
+    box-sizing: border-box;
+    margin-bottom: 6px;
+}
+
+#changeAvatarPreview { border-radius: 8px; border: 1px solid #eee; }
+
+/* default avatars grid */
+.default-avatar-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.default-avatar {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    transition: transform 0.12s ease, border-color 0.12s ease;
+}
+
+.default-avatar:hover { transform: translateY(-3px); }
+
+.default-avatar.selected {
+    border-color: #0a66c2;
+    box-shadow: 0 6px 14px rgba(10,102,194,0.14);
+}
+
+#changeAvatarFile {
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px dashed #e8e8e8;
+    background: #fafafa;
+    cursor: pointer;
+    margin-bottom: 6px;
+}
+
+/* Info panel (right-side) */
+.info-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 360px;
+    background: #fff;
+    box-shadow: -8px 0 24px rgba(0,0,0,0.08);
+    z-index: 1300;
+    padding: 18px;
+    overflow-y: auto;
+}
+
+.info-panel-card { max-width: 100%; }
+.panel-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px }
+.panel-header h3 { margin:0; font-size:18px }
+.panel-section { margin-top:12px }
+.panel-label { display:block; font-weight:600; margin-bottom:8px }
+
+#panelMembersList { display:flex; flex-direction:column; gap:8px }
+
+.info-panel .icon-btn { padding:6px 10px; border-radius:8px }
+
+.info-panel .confirm { background:#0a66c2; color:#fff }
+.info-panel .confirm:hover { filter:brightness(0.95) }
+
+/* small adjustment for add image button */
+#addImageBtn { padding:6px 10px; border-radius:8px; background:#f0f0f0; cursor:pointer }
+#addImageBtn:hover { background:#e8e8e8 }
+
+/* update avatar button next to preview */
+#updateAvatarBtn { background:#0a66c2; color:#fff; border-radius:8px; padding:6px 10px; cursor:pointer }
+#updateAvatarBtn:hover { filter:brightness(0.95) }
     .chat-area {
         flex: 1;
     }

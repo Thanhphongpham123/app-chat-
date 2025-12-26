@@ -78,7 +78,8 @@
                         <button class="icon-btn">
                             <i class="fas fa-video"></i>
                         </button>
-                        <button class="icon-btn">
+                        
+                        <button id="infoBtn" class="icon-btn" title="Thông tin cuộc trò chuyện" onclick="openChangeAvatarModal()">
                             <i class="fas fa-info"></i>
                         </button>
                     </div>
@@ -160,6 +161,47 @@
             <div style="text-align:right">
                 <button id="cancelCreateGroup" class="icon-btn" style="margin-right:8px">Huỷ</button>
                 <button id="confirmCreateGroup" class="icon-btn">Tạo nhóm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Panel (right side) -->
+    <div id="infoPanel" class="info-panel" style="display:none;">
+        <div class="info-panel-card">
+            <div class="panel-header">
+                <h3>Thông tin cuộc trò chuyện</h3>
+                <button id="closeInfoPanel" class="icon-btn">×</button>
+            </div>
+
+            <div class="panel-section">
+                <label class="panel-label">Ảnh nhóm</label>
+                <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px">
+                    <img id="changeAvatarPreview" src="" alt="preview" style="width:64px; height:64px; border-radius:8px; object-fit:cover; border:1px solid #eee">
+                    <div style="flex:1">
+                        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px">
+                            <button id="addImageBtn" class="icon-btn" title="Thêm ảnh">Thêm ảnh</button>
+                            <input id="changeAvatarFile" type="file" accept="image/*" style="display:none">
+                        </div>
+                        <input id="changeAvatarInput" type="text" placeholder="https://.../avatar.jpg" style="margin-bottom:8px; width:100%">
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:8px; align-items:center;">
+                        <button id="updateAvatarBtn" class="icon-btn confirm" style="padding:6px 10px;">Cập nhật</button>
+                    </div>
+                </div>
+
+                <div style="font-size:13px; color:#444; margin-bottom:8px">Hoặc chọn avatar mặc định</div>
+                <div id="defaultAvatars" class="default-avatar-grid" style="margin-bottom:8px">
+                    <!-- populated by JS -->
+                </div>
+
+                <div style="text-align:right; margin-top:8px">
+                    <button id="confirmChangeAvatar" class="icon-btn confirm">Cập nhật</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <label class="panel-label">Thành viên</label>
+                <div id="panelMembersList" style="font-size:13px; color:#444"> <!-- populated by JS --> </div>
             </div>
         </div>
     </div>
