@@ -666,15 +666,7 @@ body {
     justify-content: flex-end;
     position: relative;
 }
-<<<<<<< Updated upstream
 
-<<<<<<< HEAD
-.message-group.sent {
-    justify-content: flex-end;
-    position: relative;
-}
-
-=======
 .message-bubble {
     display: inline-block;     /* Giữ bubble vừa nội dung */
     max-width: 100%;           /* Giới hạn trong wrapper */
@@ -742,11 +734,6 @@ body {
     display: block;
 }
 
-
-=======
->>>>>>> Stashed changes
-
->>>>>>> toan
 .message-bubble {
     display: inline-block;
     max-width: 100%;
@@ -812,7 +799,3 @@ body {
 .message-bubble-wrapper:hover .message-actions-icon {
     display: block;
 }
-<<<<<<< HEAD
-
-=======
->>>>>>> toan

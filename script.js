@@ -59,8 +59,15 @@ function init() {
     initializeDefaultAccounts();
 
     const currentUser = getCurrentUser();
+    const reloginCode = localStorage.getItem(AUTH_RELOGIN_CODE_KEY);
+
     if (currentUser) {
         allChats = loadUserChats(currentUser);
+        
+        // Tự động RE_LOGIN nếu có code
+        if (reloginCode && fakeApiEnabled) {
+            fakeReLogin(currentUser, reloginCode);
+        }
     }
 
     renderConversations(allChats);
@@ -99,7 +106,126 @@ function initializeDefaultAccounts() {
 // -----------------------------
 const AUTH_USERS_KEY = 'appChat_users';
 const AUTH_CURRENT_KEY = 'appChat_currentUser';
+const AUTH_RELOGIN_CODE_KEY = 'appChat_reloginCode';
 const CHATS_KEY_PREFIX = 'appChat_chats_';
+
+// ===== FAKE API LAYER =====
+let fakeApiEnabled = true; // Bật fake API
+
+// Fake API: REGISTER
+function fakeRegister(user, pass) {
+    console.log('📤 FAKE API: REGISTER', { user, pass });
+    setTimeout(() => {
+        console.log('📥 FAKE API Response: REGISTER success');
+        alert('Đăng ký thành công!');
+    }, 500);
+}
+
+// Fake API: LOGIN
+function fakeLogin(user, pass) {
+    console.log('📤 FAKE API: LOGIN', { user, pass });
+    setTimeout(() => {
+        const fakeCode = 'nlu_' + Date.now();
+        localStorage.setItem(AUTH_RELOGIN_CODE_KEY, fakeCode);
+        console.log('📥 FAKE API Response: LOGIN success, RE_LOGIN_CODE:', fakeCode);
+        
+        // Fake get user list
+        fakeGetUserList();
+    }, 500);
+}
+
+// Fake API: RE_LOGIN
+function fakeReLogin(user, code) {
+    console.log('📤 FAKE API: RE_LOGIN', { user, code });
+    setTimeout(() => {
+        console.log('📥 FAKE API Response: RE_LOGIN success');
+    }, 300);
+}
+
+// Fake API: LOGOUT
+function fakeLogout() {
+    console.log('📤 FAKE API: LOGOUT');
+    setTimeout(() => {
+        console.log('📥 FAKE API Response: LOGOUT success');
+    }, 300);
+}
+
+// Fake API: SEND_CHAT (people)
+function fakeSendChatPeople(to, message) {
+    console.log('📤 FAKE API: SEND_CHAT (people)', { to, message });
+    setTimeout(() => {
+        console.log('📥 FAKE API Response: Message sent to', to);
+    }, 300);
+}
+
+// Fake API: SEND_CHAT (room)
+function fakeSendChatRoom(to, message) {
+    console.log('📤 FAKE API: SEND_CHAT (room)', { to, message });
+    setTimeout(() => {
+        console.log('📥 FAKE API Response: Message sent to room', to);
+    }, 300);
+}
+
+// Fake API: GET_USER_LIST
+function fakeGetUserList() {
+    console.log('📤 FAKE API: GET_USER_LIST');
+    setTimeout(() => {
+        const users = loadUsers().map(u => u.user);
+        console.log('📥 FAKE API Response: User list', users);
+    }, 300);
+}
+
+// Fake API: CHECK_USER_ONLINE
+function fakeCheckUserOnline(user) {
+    console.log('📤 FAKE API: CHECK_USER_ONLINE', { user });
+    setTimeout(() => {
+        const isOnline = Math.random() > 0.5;
+        console.log('📥 FAKE API Response:', user, 'is', isOnline ? 'online' : 'offline');
+    }, 300);
+}
+
+// Fake API: CHECK_USER_EXIST
+function fakeCheckUserExist(user) {
+    console.log('📤 FAKE API: CHECK_USER_EXIST', { user });
+    setTimeout(() => {
+        const users = loadUsers();
+        const exists = users.some(u => u.user === user);
+        console.log('📥 FAKE API Response:', user, exists ? 'exists' : 'does not exist');
+    }, 300);
+}
+
+// Fake API: CREATE_ROOM
+function fakeCreateRoom(name) {
+    console.log('📤 FAKE API: CREATE_ROOM', { name });
+    setTimeout(() => {
+        console.log('📥 FAKE API Response: Room created', name);
+    }, 300);
+}
+
+// Fake API: JOIN_ROOM
+function fakeJoinRoom(name) {
+    console.log('📤 FAKE API: JOIN_ROOM', { name });
+    setTimeout(() => {
+        console.log('📥 FAKE API Response: Joined room', name);
+    }, 300);
+}
+
+// Fake API: GET_PEOPLE_CHAT_MES
+function fakeGetPeopleChatMes(name, page = 1) {
+    console.log('📤 FAKE API: GET_PEOPLE_CHAT_MES', { name, page });
+    setTimeout(() => {
+        console.log('📥 FAKE API Response: Chat messages for', name);
+    }, 300);
+}
+
+// Fake API: GET_ROOM_CHAT_MES
+function fakeGetRoomChatMes(name, page = 1) {
+    console.log('📤 FAKE API: GET_ROOM_CHAT_MES', { name, page });
+    setTimeout(() => {
+        console.log('📥 FAKE API Response: Room messages for', name);
+    }, 300);
+}
+// ===== END FAKE API LAYER =====
 
 function getUserChatsKey(username) {
     return CHATS_KEY_PREFIX + username;
@@ -172,6 +298,12 @@ function createAccount(user, pass) {
     if (users.find(u => u.user === user)) return { ok: false, error: 'Tài khoản đã tồn tại' };
     users.push({ user, pass: hashPw(pass) });
     saveUsers(users);
+    
+    // Gọi fake API REGISTER
+    if (fakeApiEnabled) {
+        fakeRegister(user, pass);
+    }
+    
     return { ok: true };
 }
 
@@ -180,6 +312,11 @@ function loginAccount(user, pass) {
     const u = users.find(x => x.user === user && x.pass === hashPw(pass));
     if (!u) return { ok: false, error: 'Sai tài khoản hoặc mật khẩu' };
     localStorage.setItem(AUTH_CURRENT_KEY, user);
+
+    // Gọi fake API LOGIN
+    if (fakeApiEnabled) {
+        fakeLogin(user, pass);
+    }
 
     // Load chats cho user này
     allChats = loadUserChats(user);
@@ -195,7 +332,13 @@ function logoutAccount() {
         saveUserChats(currentUser, allChats);
     }
 
+    // Gọi fake API LOGOUT
+    if (fakeApiEnabled) {
+        fakeLogout();
+    }
+
     localStorage.removeItem(AUTH_CURRENT_KEY);
+    localStorage.removeItem(AUTH_RELOGIN_CODE_KEY);
     allChats = [];
     currentChat = null;
 
@@ -399,6 +542,11 @@ function openChat(chat) {
 
     typingStatus.style.display = 'none';
     clearTimeout(typingTimer);
+
+    // Gọi fake API để kiểm tra user online
+    if (fakeApiEnabled) {
+        fakeCheckUserOnline(chat.name);
+    }
 
     // info button always visible; panel will show group-specific controls
     const infoBtn = document.getElementById('infoBtn');
@@ -640,22 +788,9 @@ function renderMessages(messages) {
     groups.forEach(group => {
         const msgDiv = document.createElement('div');
         msgDiv.className = `message-group ${group[0].sender === 'you' ? 'sent' : 'received'}`;
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-        
-<<<<<<< HEAD
-        group.forEach(msg => {
-=======
-=======
 
->>>>>>> Stashed changes
         group.forEach(msg => {
             // wrapper để hover icon
-=======
-
-        group.forEach(msg => {
->>>>>>> Stashed changes
->>>>>>> toan
             const bubbleWrapper = document.createElement('div');
             bubbleWrapper.className = 'message-bubble-wrapper';
             bubbleWrapper.style.position = 'relative';
@@ -748,18 +883,7 @@ function renderMessages(messages) {
         const timeDiv = document.createElement('div');
         timeDiv.className = 'message-time';
         timeDiv.textContent = group[group.length - 1].time;
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-        
-<<<<<<< HEAD
-=======
-=======
 
->>>>>>> Stashed changes
-=======
-
->>>>>>> Stashed changes
->>>>>>> toan
         msgDiv.appendChild(timeDiv);
 
         messagesContainer.appendChild(msgDiv);
@@ -865,6 +989,11 @@ function sendMessage() {
     renderConversations(allChats);
 
     messageInput.value = '';
+
+    // Gọi fake API SEND_CHAT
+    if (fakeApiEnabled) {
+        fakeSendChatPeople(currentChat.name, text);
+    }
 
     simulateSendResult(msg);
 
