@@ -57,12 +57,12 @@ const chatStatus = document.getElementById('chatStatus');
 function init() {
     // Tạo sẵn các tài khoản mặc định nếu chưa có
     initializeDefaultAccounts();
-    
+
     const currentUser = getCurrentUser();
     if (currentUser) {
         allChats = loadUserChats(currentUser);
     }
-    
+
     renderConversations(allChats);
     attachEvents();
     wireAuthUI();
@@ -79,7 +79,7 @@ function initializeDefaultAccounts() {
         { user: 'Toản', pass: hashPw('123') },
         { user: 'Buu', pass: hashPw('123') }
     ];
-    
+
     let updated = false;
     defaultAccounts.forEach(account => {
         if (!users.find(u => u.user === account.user)) {
@@ -87,7 +87,7 @@ function initializeDefaultAccounts() {
             updated = true;
         }
     });
-    
+
     if (updated) {
         saveUsers(users);
         console.log('Tài khoản mặc định đã được tạo: Long, Phong, Toản, Buu (mật khẩu: 123)');
@@ -116,8 +116,8 @@ function loadUserChats(username) {
             return initialChats;
         }
         return JSON.parse(data);
-    } catch { 
-        return []; 
+    } catch {
+        return [];
     }
 }
 
@@ -129,7 +129,7 @@ function generateInitialChats(username) {
         { name: 'Toản', avatar: 'https://i.pravatar.cc/150?img=13' },
         { name: 'Buu', avatar: 'https://i.pravatar.cc/150?img=14' }
     ];
-    
+
     // Lọc bỏ chính user đang đăng nhập và tạo danh sách chat
     const chatList = allUsers
         .filter(user => user.name.toLowerCase() !== username.toLowerCase())
@@ -143,7 +143,7 @@ function generateInitialChats(username) {
             unread: 0,
             messages: []
         }));
-    
+
     return chatList;
 }
 
@@ -180,11 +180,11 @@ function loginAccount(user, pass) {
     const u = users.find(x => x.user === user && x.pass === hashPw(pass));
     if (!u) return { ok: false, error: 'Sai tài khoản hoặc mật khẩu' };
     localStorage.setItem(AUTH_CURRENT_KEY, user);
-    
+
     // Load chats cho user này
     allChats = loadUserChats(user);
     renderConversations(allChats);
-    
+
     return { ok: true };
 }
 
@@ -194,11 +194,11 @@ function logoutAccount() {
     if (currentUser) {
         saveUserChats(currentUser, allChats);
     }
-    
+
     localStorage.removeItem(AUTH_CURRENT_KEY);
     allChats = [];
     currentChat = null;
-    
+
     // Clear UI
     conversationsList.innerHTML = '';
     chatWindow.style.display = 'none';
@@ -283,7 +283,7 @@ function wireAuthUI() {
 // Render conversations list
 function renderConversations(chats) {
     conversationsList.innerHTML = '';
-    
+
     chats.forEach(chat => {
         const div = document.createElement('div');
         div.className = `conversation ${currentChat?.id === chat.id ? 'active' : ''}`;
@@ -292,15 +292,85 @@ function renderConversations(chats) {
             <div class="conversation-info">
                 <div class="conversation-header">
                     <span class="conversation-name">${chat.name}</span>
-                    <span class="conversation-time">${chat.timestamp}</span>
+                    <span class="conversation-time">${chat.timestamp || ''}</span>
+                    <span class="conversation-menu-icon" style="display:none; cursor:pointer;">⋯</span>
                 </div>
                 <div class="conversation-message ${chat.unread > 0 ? 'unread' : ''}">
-                    ${chat.lastMessage}
+                    ${chat.lastMessage || ''}
                 </div>
             </div>
             ${chat.online ? '<div class="online-badge"></div>' : ''}
         `;
-        
+
+        // tạo menu popup
+        const menu = document.createElement('div');
+        menu.className = 'conv-menu';
+        menu.style.cssText = `
+            display:none;
+            position:absolute;
+            right:10px;
+            top:35px;
+            background:white;
+            border:1px solid #ddd;
+            border-radius:6px;
+            padding:6px 10px;
+            cursor:pointer;
+            z-index:10;
+        `;
+        menu.textContent = 'Xóa hội thoại';
+
+        div.style.position = 'relative';
+        div.appendChild(menu);
+
+        //xu ly hover
+        const timeEl = div.querySelector('.conversation-time');
+        const menuIcon = div.querySelector('.conversation-menu-icon');
+
+        div.addEventListener('mouseenter', () => {
+            timeEl.style.display = 'none';
+            menuIcon.style.display = 'inline';
+        });
+
+        div.addEventListener('mouseleave', () => {
+            timeEl.style.display = 'inline';
+            menuIcon.style.display = 'none';
+            menu.style.display = 'none';
+        });
+
+        // click icon mở menu
+        menuIcon.addEventListener('click', (e) => {
+            e.stopPropagation();
+            menu.style.display = 'block';
+        });
+
+        // click ra ngoài đóng menu
+        document.addEventListener('click', () => {
+            menu.style.display = 'none';
+        });
+
+        menu.addEventListener('click', (e) => {
+            e.stopPropagation();
+
+            if (!confirm(`Xóa hội thoại với ${chat.name}?`)) return;
+
+            // xóa khỏi allChats
+            allChats = allChats.filter(c => c.id !== chat.id);
+
+            // lưu vào localStorage
+            const cu = getCurrentUser();
+            if (cu) saveUserChats(cu, allChats);
+
+            // nếu đang mở chat này → đóng
+            if (currentChat && currentChat.id === chat.id) {
+                currentChat = null;
+                chatWindow.style.display = 'none';
+                emptyChat.style.display = 'flex';
+            }
+
+            //render lại ds
+            renderConversations(allChats);
+        });
+
         div.addEventListener('click', () => openChat(chat));
         conversationsList.appendChild(div);
     });
@@ -311,20 +381,20 @@ function openChat(chat) {
     currentChat = chat;
     chatWindow.style.display = 'flex';
     emptyChat.style.display = 'none';
-    
+
     // Update header
     chatName.textContent = chat.name;
     chatAvatar.src = chat.avatar;
     chatStatus.textContent = chat.online ? 'Đang hoạt động' : 'Không hoạt động';
     chatStatus.className = `status ${chat.online ? 'online' : ''}`;
-    
+
     // Clear unread
     chat.unread = 0;
-    
+
     // Render messages
     renderMessages(chat.messages);
     renderConversations(allChats);
-    
+
     messageInput.focus();
 
     typingStatus.style.display = 'none';
@@ -556,7 +626,7 @@ function processImageToSquare(src, size, callback) {
 // Render messages
 function renderMessages(messages) {
     messagesContainer.innerHTML = '';
-    
+
     // Group consecutive messages from same sender
     const groups = [];
     messages.forEach((msg, idx) => {
@@ -566,12 +636,26 @@ function renderMessages(messages) {
             groups[groups.length - 1].push(msg);
         }
     });
-    
+
     groups.forEach(group => {
         const msgDiv = document.createElement('div');
         msgDiv.className = `message-group ${group[0].sender === 'you' ? 'sent' : 'received'}`;
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
         
+<<<<<<< HEAD
         group.forEach(msg => {
+=======
+=======
+
+>>>>>>> Stashed changes
+        group.forEach(msg => {
+            // wrapper để hover icon
+=======
+
+        group.forEach(msg => {
+>>>>>>> Stashed changes
+>>>>>>> toan
             const bubbleWrapper = document.createElement('div');
             bubbleWrapper.className = 'message-bubble-wrapper';
             bubbleWrapper.style.position = 'relative';
@@ -664,12 +748,23 @@ function renderMessages(messages) {
         const timeDiv = document.createElement('div');
         timeDiv.className = 'message-time';
         timeDiv.textContent = group[group.length - 1].time;
+<<<<<<< Updated upstream
+<<<<<<< Updated upstream
         
+<<<<<<< HEAD
+=======
+=======
+
+>>>>>>> Stashed changes
+=======
+
+>>>>>>> Stashed changes
+>>>>>>> toan
         msgDiv.appendChild(timeDiv);
-        
+
         messagesContainer.appendChild(msgDiv);
     });
-    
+
     // Scroll to bottom
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
@@ -707,7 +802,7 @@ function handleIncomingMessage(data) {
     }
 
     renderConversations(allChats);
-    
+
     // Lưu chats của user hiện tại
     const currentUser = getCurrentUser();
     if (currentUser) {
@@ -749,10 +844,10 @@ function updateUserStatus(username, online) {
 function sendMessage() {
     const text = messageInput.value.trim();
     if (!text || !currentChat) return;
-    
+
     const now = new Date();
     const time = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
-    
+
     const msg = {
         id: Date.now(),
         sender: 'you',
@@ -760,7 +855,7 @@ function sendMessage() {
         time: time,
         status: 'sending' // trạng thái mới
     };
-    
+
     currentChat.messages.push(msg);
 
     currentChat.lastMessage = text;
@@ -810,17 +905,17 @@ function sendMessage() {
             'Cảm ơn bạn!',
             'Được rồi'
         ];
-        
+
         const reply = {
             id: Date.now(),
             sender: 'them',
             text: responses[Math.floor(Math.random() * responses.length)],
             time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
         };
-        
+
         currentChat.messages.push(reply);
         renderMessages(currentChat.messages);
-        
+
         // Lưu lại sau khi nhận reply
         const currentUser = getCurrentUser();
         if (currentUser) {
@@ -850,7 +945,7 @@ function simulateSendResult(msg) {
 
 // Search
 function searchChats(query) {
-    const filtered = allChats.filter(chat => 
+    const filtered = allChats.filter(chat =>
         chat.name.toLowerCase().includes(query.toLowerCase()) ||
         chat.lastMessage.toLowerCase().includes(query.toLowerCase())
     );
@@ -962,7 +1057,7 @@ function escapeHtml(text) {
 // Events
 function attachEvents() {
     sendBtn.addEventListener('click', sendMessage);
-    
+
     messageInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
