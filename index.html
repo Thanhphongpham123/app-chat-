@@ -173,7 +173,19 @@
                 <button id="closeInfoPanel" class="icon-btn">×</button>
             </div>
 
-            <div class="panel-section">
+            <div class="panel-tabs">
+                <button id="tabAvatar" class="panel-tab active" title="Ảnh nhóm">
+                    <i class="fas fa-image" style="margin-right:6px"></i>
+                    <span>Ảnh nhóm</span>
+                </button>
+                <button id="tabMembers" class="panel-tab" title="Thành viên">
+                    <i class="fas fa-users" style="margin-right:6px"></i>
+                    <span>Thành viên</span>
+                    <span id="membersCountBadge" class="badge"></span>
+                </button>
+            </div>
+
+            <div id="sectionAvatar" class="panel-section">
                 <label class="panel-label">Ảnh nhóm</label>
                 <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px">
                     <img id="changeAvatarPreview" src="" alt="preview" style="width:64px; height:64px; border-radius:8px; object-fit:cover; border:1px solid #eee">
@@ -199,9 +211,14 @@
                 </div>
             </div>
 
-            <div class="panel-section">
+            <div id="sectionMembers" class="panel-section" style="display:none">
                 <label class="panel-label">Thành viên</label>
                 <div id="panelMembersList" style="font-size:13px; color:#444"> <!-- populated by JS --> </div>
+                <div class="members-controls" style="display:flex; gap:8px; margin-top:8px">
+                    <input id="addMemberInput" type="text" placeholder="Nhập tên thành viên" style="flex:1; padding:8px 10px; border:1px solid #e8e8e8; border-radius:8px">
+                    <button id="addMemberBtn" class="icon-btn confirm" title="Thêm thành viên" style="padding:6px 12px; border-radius:8px">Thêm</button>
+                </div>
+                <div style="font-size:12px; color:#777; margin-top:6px">Chỉ áp dụng cho nhóm. Bạn không thể xoá chính mình và nhóm phải còn ít nhất 2 thành viên.</div>
             </div>
         </div>
     </div>

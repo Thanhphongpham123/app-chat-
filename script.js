@@ -582,22 +582,130 @@ function openChangeAvatarModal() {
     const addImageBtn = document.getElementById('addImageBtn');
     const updateAvatarBtn = document.getElementById('updateAvatarBtn');
     const membersList = document.getElementById('panelMembersList');
+    const addMemberInput = document.getElementById('addMemberInput');
+    const addMemberBtn = document.getElementById('addMemberBtn');
+    const tabAvatar = document.getElementById('tabAvatar');
+    const tabMembers = document.getElementById('tabMembers');
+    const sectionAvatar = document.getElementById('sectionAvatar');
+    const sectionMembers = document.getElementById('sectionMembers');
+    const membersCountBadge = document.getElementById('membersCountBadge');
     input.value = (currentChat && currentChat.avatar) || '';
     preview.src = (currentChat && currentChat.avatar) || '';
     if (fileInput) fileInput.value = '';
-    if (membersList) {
+    function renderMembersPanel() {
+        if (!membersList) return;
         membersList.innerHTML = '';
-        if (isGroup) {
-            (currentChat.members || []).forEach(m => {
-                const d = document.createElement('div');
-                d.textContent = m;
-                membersList.appendChild(d);
-            });
-        } else {
-            membersList.textContent = 'Thông tin chỉ khả dụng cho cuộc trò chuyện nhóm.';
+            if (!isGroup) {
+                membersList.textContent = 'Thông tin chỉ khả dụng cho cuộc trò chuyện nhóm.';
+                if (addMemberInput) addMemberInput.disabled = true;
+                if (addMemberBtn) addMemberBtn.disabled = true;
+                updateMembersCount('-');
+                return;
+            }
+        if (addMemberInput) addMemberInput.disabled = false;
+        if (addMemberBtn) addMemberBtn.disabled = false;
+
+        const cu = getCurrentUser();
+        function getMemberAvatar(name) {
+            const chat = allChats.find(c => !c.isGroup && c.name === name);
+            if (chat && chat.avatar) return chat.avatar;
+            const DEFAULTS = {
+                'Long': 'https://i.pravatar.cc/150?img=11',
+                'Phong': 'https://i.pravatar.cc/150?img=12',
+                'Toản': 'https://i.pravatar.cc/150?img=13',
+                'Buu': 'https://i.pravatar.cc/150?img=14'
+            };
+            return DEFAULTS[name] || `https://i.pravatar.cc/150?u=${encodeURIComponent(name)}`;
         }
+        (currentChat.members || []).forEach(name => {
+            const row = document.createElement('div');
+            row.className = 'members-row';
+
+            const left = document.createElement('div');
+            left.className = 'members-left';
+            const avatar = document.createElement('img');
+            avatar.className = 'members-avatar';
+            avatar.src = getMemberAvatar(name);
+            avatar.alt = name;
+            const label = document.createElement('div');
+            label.className = 'members-name';
+            label.textContent = name;
+            left.appendChild(avatar);
+            left.appendChild(label);
+
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'members-remove';
+            removeBtn.textContent = 'Xóa';
+            // prevent removing yourself
+            if (name === cu) {
+                removeBtn.disabled = true;
+                removeBtn.title = 'Không thể xóa chính bạn';
+            }
+            removeBtn.addEventListener('click', () => {
+                onRemoveMember(name);
+            });
+
+            row.appendChild(left);
+            row.appendChild(removeBtn);
+            membersList.appendChild(row);
+        });
+
+        updateMembersCount((currentChat.members || []).length);
+    }
+
+    function updateMembersCount(value) {
+        if (!membersCountBadge) return;
+        if (value === '-' || !isGroup) {
+            membersCountBadge.textContent = '';
+            membersCountBadge.style.display = 'none';
+            return;
+        }
+        membersCountBadge.textContent = value;
+        membersCountBadge.style.display = 'inline-block';
+    }
+
+    function onAddMember() {
+        if (!isGroup) return alert('Chỉ nhóm mới có thể thêm thành viên');
+        const cu = getCurrentUser();
+        const name = (addMemberInput && addMemberInput.value || '').trim();
+        if (!name) return alert('Nhập tên thành viên');
+        const allUsers = loadUsers().map(u => u.user);
+        if (!allUsers.includes(name)) return alert('Thành viên không tồn tại trong hệ thống');
+        if ((currentChat.members || []).includes(name)) return alert('Thành viên đã có trong nhóm');
+        currentChat.members.push(name);
+        // persist
+        const user = getCurrentUser();
+        if (user) saveUserChats(user, allChats);
+        renderMembersPanel();
+        if (addMemberInput) addMemberInput.value = '';
+    }
+
+    function onRemoveMember(name) {
+        if (!isGroup) return alert('Chỉ nhóm mới có thể xóa thành viên');
+        const cu = getCurrentUser();
+        if (name === cu) return alert('Bạn không thể xóa chính mình khỏi nhóm');
+        if (!confirm(`Xóa thành viên "${name}" khỏi nhóm?`)) return;
+        if ((currentChat.members || []).length <= 2) return alert('Nhóm phải có ít nhất 2 thành viên');
+        currentChat.members = (currentChat.members || []).filter(n => n !== name);
+        // persist
+        const user = getCurrentUser();
+        if (user) saveUserChats(user, allChats);
+        renderMembersPanel();
     }
     panel.style.display = 'block';
+    function selectTab(tab) {
+        const isMembers = tab === 'members';
+        if (tabAvatar) tabAvatar.classList.toggle('active', !isMembers);
+        if (tabMembers) tabMembers.classList.toggle('active', isMembers);
+        if (sectionAvatar) sectionAvatar.style.display = isMembers ? 'none' : '';
+        if (sectionMembers) sectionMembers.style.display = isMembers ? '' : 'none';
+        if (isMembers) {
+            renderMembersPanel();
+        } else {
+            updateMembersCount('-');
+        }
+    }
+    selectTab('avatar');
 
     const closeBtn = document.getElementById('closeInfoPanel');
     const confirm = document.getElementById('confirmChangeAvatar');
@@ -614,6 +722,10 @@ function openChangeAvatarModal() {
             if (addImageBtn) addImageBtn.removeEventListener('click', onAddImage);
             if (updateAvatarBtn) updateAvatarBtn.removeEventListener('click', onConfirm);
             if (avatarProcessTimer) { clearTimeout(avatarProcessTimer); avatarProcessTimer = null; }
+            if (addMemberBtn) addMemberBtn.removeEventListener('click', onAddMember);
+            if (addMemberInput) addMemberInput.removeEventListener('keypress', onAddMemberKeypress);
+            if (tabAvatar) tabAvatar.removeEventListener('click', onClickTabAvatar);
+            if (tabMembers) tabMembers.removeEventListener('click', onClickTabMembers);
             // cleanup default avatars listeners
             if (defaultGrid) {
                 Array.from(defaultGrid.children).forEach(img => {
@@ -735,6 +847,19 @@ function openChangeAvatarModal() {
     if (updateAvatarBtn) {
         updateAvatarBtn.addEventListener('click', onConfirm);
     }
+    // members controls
+    function onAddMemberKeypress(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            onAddMember();
+        }
+    }
+    if (addMemberBtn) addMemberBtn.addEventListener('click', onAddMember);
+    if (addMemberInput) addMemberInput.addEventListener('keypress', onAddMemberKeypress);
+    function onClickTabAvatar() { selectTab('avatar'); }
+    function onClickTabMembers() { selectTab('members'); }
+    if (tabAvatar) tabAvatar.addEventListener('click', onClickTabAvatar);
+    if (tabMembers) tabMembers.addEventListener('click', onClickTabMembers);
     } catch (err) {
         console.error('openChangeAvatarModal error', err);
         alert('Lỗi khi mở panel. Xem console để biết chi tiết.');
