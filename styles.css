@@ -1,3 +1,13 @@
+.collapsible {
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height 0.22s ease, opacity 0.22s ease;
+}
+.collapsible.open {
+    max-height: 800px; /* đủ lớn cho nội dung */
+    opacity: 1;
+}
 * {
     margin: 0;
     padding: 0;
@@ -500,7 +510,7 @@ body {
 /* default avatars grid */
 .default-avatar-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 8px;
 }
 
@@ -549,6 +559,8 @@ body {
 .panel-header h3 { margin:0; font-size:18px }
 .panel-section { margin-top:12px }
 .panel-label { display:block; font-weight:600; margin-bottom:8px }
+/* clickable toggle for Members section */
+.panel-label.toggle { cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
 
 #panelMembersList { display:flex; flex-direction:column; gap:8px }
 
@@ -558,8 +570,8 @@ body {
 .info-panel .confirm:hover { filter:brightness(0.95) }
 
 /* small adjustment for add image button */
-#addImageBtn { padding:6px 10px; border-radius:8px; background:#f0f0f0; cursor:pointer }
-#addImageBtn:hover { background:#e8e8e8 }
+#addImageBtn { padding:0; background:transparent; color:#0a66c2; cursor:pointer; border:none; font-weight:600 }
+#addImageBtn:hover { text-decoration: underline }
 
 /* update avatar button next to preview */
 #updateAvatarBtn { background:#0a66c2; color:#fff; border-radius:8px; padding:6px 10px; cursor:pointer }
@@ -567,6 +579,58 @@ body {
     .chat-area {
         flex: 1;
     }
+}
+
+/* Members management styles */
+.members-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 8px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    background: #fafafa;
+}
+.members-name { font-size: 13px; color: #333; }
+.members-left { display:flex; align-items:center; gap:8px }
+.members-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid #e8e8e8;
+}
+.members-remove {
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: #f8d7da;
+    color: #842029;
+    border: none;
+    cursor: pointer;
+}
+.members-remove:hover { filter: brightness(0.96); }
+.members-remove:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* collapsible content spacing */
+.members-content { margin-top: 8px; }
+
+/* Info panel two-column layout */
+.panel-columns {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+.panel-col {
+    flex: 1;
+    min-width: 0;
+}
+
+@media (max-width: 840px) {
+    .panel-columns { flex-direction: column; }
 }
 
 /* Auth overlay styles */
@@ -591,6 +655,42 @@ body {
 .auth-tabs button.active { background:#0a66c2; color:#fff }
 .auth-form { display:flex; flex-direction:column; gap:8px }
 .auth-form input { padding:8px 10px; border:1px solid #e5e5e5; border-radius:6px }
+
+    /* Tabs in info panel */
+    .panel-tabs {
+        display: flex;
+        gap: 8px;
+        border-bottom: 1px solid #f0f0f0;
+        margin-bottom: 8px;
+    }
+    .panel-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border: none;
+        background: transparent;
+        color: #0a66c2;
+        cursor: pointer;
+        border-radius: 8px 8px 0 0;
+    }
+    .panel-tab.active {
+        background: #e7f3ff;
+        box-shadow: inset 0 -2px 0 #0a66c2;
+    }
+    .panel-tab i { color:#0a66c2 }
+
+    @media (max-width: 420px) {
+        .default-avatar-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    .badge {
+        background: #0a66c2;
+        color: #fff;
+        font-size: 12px;
+        line-height: 1;
+        padding: 3px 6px;
+        border-radius: 12px;
+    }
 .auth-form button { padding:8px 10px; border:none; background:#0a66c2; color:#fff; border-radius:6px; cursor:pointer }
 .auth-note { margin-top:8px; font-size:12px; color:#666 }
 
