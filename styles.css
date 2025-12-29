@@ -724,3 +724,72 @@ body {
 .message-bubble-wrapper:hover .message-actions-icon {
     display: block;
 }
+
+/* =======================
+   DARK MODE SUPPORT
+=======================*/
+
+body.dark {
+    background: #0f0f0f;
+    color: #e5e5e5;
+}
+
+/* Sidebar */
+body.dark .sidebar {
+    background: #111;
+    border-right: 1px solid #222;
+}
+
+body.dark .sidebar-header h1{
+    color:white;
+}
+
+body.dark .conversations .conversation{
+    background:#141414;
+    border-color:#222;
+}
+
+body.dark .conversation:hover{
+    background:#1d1d1d;
+}
+
+/* Chat area */
+body.dark .chat-area{
+    background:#0f0f0f;
+}
+
+body.dark .chat-header{
+    background:#111;
+    border-bottom:1px solid #222;
+}
+
+/* Messages */
+body.dark .messages{
+    background:#0f0f0f;
+}
+
+body.dark .message.you{
+    background:#003366;
+    color:white;
+}
+
+body.dark .message.them{
+    background:#1b1b1b;
+    color:white;
+}
+
+/* Input */
+body.dark .message-input-area{
+    background:#111;
+    border-top:1px solid #222;
+}
+
+body.dark .emoji-popup{
+    background:#111;
+}
+
+body.dark .auth-card{
+    background:#111;
+    color:white;
+}
+

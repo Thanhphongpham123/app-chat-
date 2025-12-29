@@ -851,6 +851,24 @@ function attachEvents() {
 // Start
 init();
 
+const darkModeToggle = document.getElementById("darkModeToggle");
+
+// load trạng thái đã lưu
+if (localStorage.getItem("darkMode") === "on") {
+    document.body.classList.add("dark");
+}
+
+darkModeToggle.addEventListener("click", () => {
+    document.body.classList.toggle("dark");
+
+    if (document.body.classList.contains("dark")) {
+        localStorage.setItem("darkMode", "on");
+    } else {
+        localStorage.setItem("darkMode", "off");
+    }
+});
+
+
 // -----------------------------
 // WebSocket & API helper
 // -----------------------------
