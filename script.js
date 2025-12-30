@@ -40,6 +40,7 @@ const mockData = [
 
 let currentChat = null;
 let allChats = [];
+const inactiveTimers = {};
 
 // DOM Elements
 const conversationsList = document.getElementById('conversationsList');
@@ -59,8 +60,15 @@ function init() {
     initializeDefaultAccounts();
 
     const currentUser = getCurrentUser();
+    const reloginCode = localStorage.getItem(AUTH_RELOGIN_CODE_KEY);
+
     if (currentUser) {
         allChats = loadUserChats(currentUser);
+        
+        // Tự động RE_LOGIN nếu có code
+        if (reloginCode && fakeApiEnabled) {
+            fakeReLogin(currentUser, reloginCode);
+        }
     }
 
     renderConversations(allChats);
@@ -99,7 +107,126 @@ function initializeDefaultAccounts() {
 // -----------------------------
 const AUTH_USERS_KEY = 'appChat_users';
 const AUTH_CURRENT_KEY = 'appChat_currentUser';
+const AUTH_RELOGIN_CODE_KEY = 'appChat_reloginCode';
 const CHATS_KEY_PREFIX = 'appChat_chats_';
+
+// ===== FAKE API LAYER =====
+let fakeApiEnabled = true; // Bật fake API
+
+// Fake API: REGISTER
+function fakeRegister(user, pass) {
+    console.log('📤 FAKE API: REGISTER', { user, pass });
+    setTimeout(() => {
+        console.log('📥 FAKE API Response: REGISTER success');
+        alert('Đăng ký thành công!');
+    }, 500);
+}
+
+// Fake API: LOGIN
+function fakeLogin(user, pass) {
+    console.log('📤 FAKE API: LOGIN', { user, pass });
+    setTimeout(() => {
+        const fakeCode = 'nlu_' + Date.now();
+        localStorage.setItem(AUTH_RELOGIN_CODE_KEY, fakeCode);
+        console.log('📥 FAKE API Response: LOGIN success, RE_LOGIN_CODE:', fakeCode);
+        
+        // Fake get user list
+        fakeGetUserList();
+    }, 500);
+}
+
+// Fake API: RE_LOGIN
+function fakeReLogin(user, code) {
+    console.log('📤 FAKE API: RE_LOGIN', { user, code });
+    setTimeout(() => {
+        console.log('📥 FAKE API Response: RE_LOGIN success');
+    }, 300);
+}
+
+// Fake API: LOGOUT
+function fakeLogout() {
+    console.log('📤 FAKE API: LOGOUT');
+    setTimeout(() => {
+        console.log('📥 FAKE API Response: LOGOUT success');
+    }, 300);
+}
+
+// Fake API: SEND_CHAT (people)
+function fakeSendChatPeople(to, message) {
+    console.log('📤 FAKE API: SEND_CHAT (people)', { to, message });
+    setTimeout(() => {
+        console.log('📥 FAKE API Response: Message sent to', to);
+    }, 300);
+}
+
+// Fake API: SEND_CHAT (room)
+function fakeSendChatRoom(to, message) {
+    console.log('📤 FAKE API: SEND_CHAT (room)', { to, message });
+    setTimeout(() => {
+        console.log('📥 FAKE API Response: Message sent to room', to);
+    }, 300);
+}
+
+// Fake API: GET_USER_LIST
+function fakeGetUserList() {
+    console.log('📤 FAKE API: GET_USER_LIST');
+    setTimeout(() => {
+        const users = loadUsers().map(u => u.user);
+        console.log('📥 FAKE API Response: User list', users);
+    }, 300);
+}
+
+// Fake API: CHECK_USER_ONLINE
+function fakeCheckUserOnline(user) {
+    console.log('📤 FAKE API: CHECK_USER_ONLINE', { user });
+    setTimeout(() => {
+        const isOnline = Math.random() > 0.5;
+        console.log('📥 FAKE API Response:', user, 'is', isOnline ? 'online' : 'offline');
+    }, 300);
+}
+
+// Fake API: CHECK_USER_EXIST
+function fakeCheckUserExist(user) {
+    console.log('📤 FAKE API: CHECK_USER_EXIST', { user });
+    setTimeout(() => {
+        const users = loadUsers();
+        const exists = users.some(u => u.user === user);
+        console.log('📥 FAKE API Response:', user, exists ? 'exists' : 'does not exist');
+    }, 300);
+}
+
+// Fake API: CREATE_ROOM
+function fakeCreateRoom(name) {
+    console.log('📤 FAKE API: CREATE_ROOM', { name });
+    setTimeout(() => {
+        console.log('📥 FAKE API Response: Room created', name);
+    }, 300);
+}
+
+// Fake API: JOIN_ROOM
+function fakeJoinRoom(name) {
+    console.log('📤 FAKE API: JOIN_ROOM', { name });
+    setTimeout(() => {
+        console.log('📥 FAKE API Response: Joined room', name);
+    }, 300);
+}
+
+// Fake API: GET_PEOPLE_CHAT_MES
+function fakeGetPeopleChatMes(name, page = 1) {
+    console.log('📤 FAKE API: GET_PEOPLE_CHAT_MES', { name, page });
+    setTimeout(() => {
+        console.log('📥 FAKE API Response: Chat messages for', name);
+    }, 300);
+}
+
+// Fake API: GET_ROOM_CHAT_MES
+function fakeGetRoomChatMes(name, page = 1) {
+    console.log('📤 FAKE API: GET_ROOM_CHAT_MES', { name, page });
+    setTimeout(() => {
+        console.log('📥 FAKE API Response: Room messages for', name);
+    }, 300);
+}
+// ===== END FAKE API LAYER =====
 
 function getUserChatsKey(username) {
     return CHATS_KEY_PREFIX + username;
@@ -141,6 +268,7 @@ function generateInitialChats(username) {
             timestamp: 'Mới',
             online: index === 0, // User đầu tiên online
             unread: 0,
+            lastActive: Date.now(),
             messages: []
         }));
 
@@ -172,6 +300,12 @@ function createAccount(user, pass) {
     if (users.find(u => u.user === user)) return { ok: false, error: 'Tài khoản đã tồn tại' };
     users.push({ user, pass: hashPw(pass) });
     saveUsers(users);
+    
+    // Gọi fake API REGISTER
+    if (fakeApiEnabled) {
+        fakeRegister(user, pass);
+    }
+    
     return { ok: true };
 }
 
@@ -180,6 +314,11 @@ function loginAccount(user, pass) {
     const u = users.find(x => x.user === user && x.pass === hashPw(pass));
     if (!u) return { ok: false, error: 'Sai tài khoản hoặc mật khẩu' };
     localStorage.setItem(AUTH_CURRENT_KEY, user);
+
+    // Gọi fake API LOGIN
+    if (fakeApiEnabled) {
+        fakeLogin(user, pass);
+    }
 
     // Load chats cho user này
     allChats = loadUserChats(user);
@@ -195,7 +334,13 @@ function logoutAccount() {
         saveUserChats(currentUser, allChats);
     }
 
+    // Gọi fake API LOGOUT
+    if (fakeApiEnabled) {
+        fakeLogout();
+    }
+
     localStorage.removeItem(AUTH_CURRENT_KEY);
+    localStorage.removeItem(AUTH_RELOGIN_CODE_KEY);
     allChats = [];
     currentChat = null;
 
@@ -399,6 +544,394 @@ function openChat(chat) {
 
     typingStatus.style.display = 'none';
     clearTimeout(typingTimer);
+
+    // Gọi fake API để kiểm tra user online
+    if (fakeApiEnabled) {
+        fakeCheckUserOnline(chat.name);
+    }
+
+    // info button always visible; panel will show group-specific controls
+    const infoBtn = document.getElementById('infoBtn');
+    if (infoBtn) infoBtn.style.display = 'inline-flex';
+}
+
+function setUserActive(chat) {
+    chat.online = true;
+    chat.lastActive = Date.now();
+
+    renderConversations(allChats);
+
+    // clear timer cũ nếu có
+    if (inactiveTimers[chat.id]) {
+        clearTimeout(inactiveTimers[chat.id]);
+    }
+
+    // tạo lại timer 5 phút
+    inactiveTimers[chat.id] = setTimeout(() => {
+        chat.online = false;
+        renderConversations(allChats);
+
+        if (currentChat && currentChat.id === chat.id) {
+            chatStatus.textContent = "Không hoạt động";
+            chatStatus.className = "status";
+        }
+
+        // lưu vào localStorage
+        const u = getCurrentUser();
+        if (u) saveUserChats(u, allChats);
+
+    }, 5 * 60 * 1000); // 5 phút
+
+    renderConversations(allChats);
+
+    if (currentChat && currentChat.id === chat.id) {
+        chatStatus.textContent = "Đang hoạt động";
+        chatStatus.className = "status online";
+    }
+}
+
+
+// Open info panel (shows group avatar controls when current chat is a group)
+function openChangeAvatarModal() {
+    try {
+        console.log('openChangeAvatarModal called', { currentChat });
+        const currentUser = getCurrentUser();
+        if (!currentUser) return alert('Vui lòng đăng nhập');
+        const isGroup = !!(currentChat && currentChat.isGroup);
+    const panel = document.getElementById('infoPanel');
+    if (!panel) {
+        console.error('infoPanel element not found in DOM');
+        alert('Lỗi: không tìm thấy info panel trong trang. Mở console để biết thêm chi tiết.');
+        return;
+    }
+            // apply fallback inline styles to ensure visibility if external CSS didn't load
+            panel.style.position = panel.style.position || 'fixed';
+            panel.style.top = panel.style.top || '0';
+            panel.style.right = panel.style.right || '0';
+            panel.style.bottom = panel.style.bottom || '0';
+            panel.style.width = panel.style.width || '360px';
+            panel.style.background = panel.style.background || '#fff';
+            panel.style.zIndex = panel.style.zIndex || '2000';
+            panel.style.boxShadow = panel.style.boxShadow || '-8px 0 24px rgba(0,0,0,0.08)';
+    const input = document.getElementById('changeAvatarInput');
+    const fileInput = document.getElementById('changeAvatarFile');
+    const preview = document.getElementById('changeAvatarPreview');
+    const defaultGrid = document.getElementById('defaultAvatars');
+    const addImageBtn = document.getElementById('addImageBtn');
+    const updateAvatarBtn = document.getElementById('updateAvatarBtn');
+    const membersList = document.getElementById('panelMembersList');
+    const addMemberInput = document.getElementById('addMemberInput');
+    const addMemberBtn = document.getElementById('addMemberBtn');
+    const tabAvatar = document.getElementById('tabAvatar');
+    const tabMembers = document.getElementById('tabMembers');
+    const sectionAvatar = document.getElementById('sectionAvatar');
+    const sectionMembers = document.getElementById('sectionMembers');
+    const membersCountBadge = document.getElementById('membersCountBadge');
+    input.value = (currentChat && currentChat.avatar) || '';
+    preview.src = (currentChat && currentChat.avatar) || '';
+    if (fileInput) fileInput.value = '';
+    function renderMembersPanel() {
+        if (!membersList) return;
+        membersList.innerHTML = '';
+            if (!isGroup) {
+                membersList.textContent = 'Thông tin chỉ khả dụng cho cuộc trò chuyện nhóm.';
+                if (addMemberInput) addMemberInput.disabled = true;
+                if (addMemberBtn) addMemberBtn.disabled = true;
+                updateMembersCount('-');
+                return;
+            }
+        if (addMemberInput) addMemberInput.disabled = false;
+        if (addMemberBtn) addMemberBtn.disabled = false;
+
+        const cu = getCurrentUser();
+        function getMemberAvatar(name) {
+            const chat = allChats.find(c => !c.isGroup && c.name === name);
+            if (chat && chat.avatar) return chat.avatar;
+            const DEFAULTS = {
+                'Long': 'https://i.pravatar.cc/150?img=11',
+                'Phong': 'https://i.pravatar.cc/150?img=12',
+                'Toản': 'https://i.pravatar.cc/150?img=13',
+                'Buu': 'https://i.pravatar.cc/150?img=14'
+            };
+            return DEFAULTS[name] || `https://i.pravatar.cc/150?u=${encodeURIComponent(name)}`;
+        }
+        (currentChat.members || []).forEach(name => {
+            const row = document.createElement('div');
+            row.className = 'members-row';
+
+            const left = document.createElement('div');
+            left.className = 'members-left';
+            const avatar = document.createElement('img');
+            avatar.className = 'members-avatar';
+            avatar.src = getMemberAvatar(name);
+            avatar.alt = name;
+            const label = document.createElement('div');
+            label.className = 'members-name';
+            label.textContent = name;
+            left.appendChild(avatar);
+            left.appendChild(label);
+
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'members-remove';
+            removeBtn.textContent = 'Xóa';
+            // prevent removing yourself
+            if (name === cu) {
+                removeBtn.disabled = true;
+                removeBtn.title = 'Không thể xóa chính bạn';
+            }
+            removeBtn.addEventListener('click', () => {
+                onRemoveMember(name);
+            });
+
+            row.appendChild(left);
+            row.appendChild(removeBtn);
+            membersList.appendChild(row);
+        });
+
+        updateMembersCount((currentChat.members || []).length);
+    }
+
+    function updateMembersCount(value) {
+        if (!membersCountBadge) return;
+        if (value === '-' || !isGroup) {
+            membersCountBadge.textContent = '';
+            membersCountBadge.style.display = 'none';
+            return;
+        }
+        membersCountBadge.textContent = value;
+        membersCountBadge.style.display = 'inline-block';
+    }
+
+    function onAddMember() {
+        if (!isGroup) return alert('Chỉ nhóm mới có thể thêm thành viên');
+        const cu = getCurrentUser();
+        const name = (addMemberInput && addMemberInput.value || '').trim();
+        if (!name) return alert('Nhập tên thành viên');
+        const allUsers = loadUsers().map(u => u.user);
+        if (!allUsers.includes(name)) return alert('Thành viên không tồn tại trong hệ thống');
+        if ((currentChat.members || []).includes(name)) return alert('Thành viên đã có trong nhóm');
+        currentChat.members.push(name);
+        // persist
+        const user = getCurrentUser();
+        if (user) saveUserChats(user, allChats);
+        renderMembersPanel();
+        if (addMemberInput) addMemberInput.value = '';
+    }
+
+    function onRemoveMember(name) {
+        if (!isGroup) return alert('Chỉ nhóm mới có thể xóa thành viên');
+        const cu = getCurrentUser();
+        if (name === cu) return alert('Bạn không thể xóa chính mình khỏi nhóm');
+        if (!confirm(`Xóa thành viên "${name}" khỏi nhóm?`)) return;
+        if ((currentChat.members || []).length <= 2) return alert('Nhóm phải có ít nhất 2 thành viên');
+        currentChat.members = (currentChat.members || []).filter(n => n !== name);
+        // persist
+        const user = getCurrentUser();
+        if (user) saveUserChats(user, allChats);
+        renderMembersPanel();
+    }
+    panel.style.display = 'block';
+    function selectTab(tab) {
+        const isMembers = tab === 'members';
+        if (tabAvatar) tabAvatar.classList.toggle('active', !isMembers);
+        if (tabMembers) tabMembers.classList.toggle('active', isMembers);
+        if (sectionAvatar) sectionAvatar.style.display = isMembers ? 'none' : '';
+        if (sectionMembers) sectionMembers.style.display = isMembers ? '' : 'none';
+        if (isMembers) {
+            renderMembersPanel();
+        } else {
+            updateMembersCount('-');
+        }
+    }
+    selectTab('avatar');
+
+    const closeBtn = document.getElementById('closeInfoPanel');
+    const confirm = document.getElementById('confirmChangeAvatar');
+
+    let avatarProcessTimer = null;
+
+    function close() {
+        try {
+            panel.style.display = 'none';
+            if (closeBtn) closeBtn.removeEventListener('click', onCancel);
+            if (confirm) confirm.removeEventListener('click', onConfirm);
+            if (input) input.removeEventListener('input', onInput);
+            if (fileInput) fileInput.removeEventListener('change', onFile);
+            if (addImageBtn) addImageBtn.removeEventListener('click', onAddImage);
+            if (updateAvatarBtn) updateAvatarBtn.removeEventListener('click', onConfirm);
+            if (avatarProcessTimer) { clearTimeout(avatarProcessTimer); avatarProcessTimer = null; }
+            if (addMemberBtn) addMemberBtn.removeEventListener('click', onAddMember);
+            if (addMemberInput) addMemberInput.removeEventListener('keypress', onAddMemberKeypress);
+            if (tabAvatar) tabAvatar.removeEventListener('click', onClickTabAvatar);
+            if (tabMembers) tabMembers.removeEventListener('click', onClickTabMembers);
+            // cleanup default avatars listeners
+            if (defaultGrid) {
+                Array.from(defaultGrid.children).forEach(img => {
+                    if (img._handler) img.removeEventListener('click', img._handler);
+                    delete img._handler;
+                });
+                defaultGrid.innerHTML = '';
+            }
+        } catch (err) {
+            console.error('Error during close():', err);
+        }
+    }
+
+    function onCancel() { close(); }
+
+    function onInput() {
+        const val = (input.value || '').trim();
+        if (!val) { preview.src = ''; return; }
+        if (avatarProcessTimer) clearTimeout(avatarProcessTimer);
+        avatarProcessTimer = setTimeout(() => {
+            processImageToSquare(val, 256, (processed, err) => {
+                if (processed) {
+                    preview.src = processed;
+                    input.value = processed;
+                } else {
+                    console.warn('processImageToSquare failed for URL, using original value', err);
+                    preview.src = val;
+                }
+            });
+        }, 250);
+    }
+
+    function onFile(e) {
+        const f = e.target.files && e.target.files[0];
+        if (!f) return;
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+            const dataUrl = ev.target.result;
+            // process and resize/crop to square before setting
+            processImageToSquare(dataUrl, 256, (processed, err) => {
+                if (processed) {
+                    preview.src = processed;
+                    input.value = processed;
+                } else {
+                    console.warn('Failed to process uploaded image, using original', err);
+                    preview.src = dataUrl;
+                    input.value = dataUrl;
+                }
+                // clear selection of default avatars
+                if (defaultGrid) Array.from(defaultGrid.children).forEach(c => c.classList.remove('selected'));
+            });
+        };
+        reader.readAsDataURL(f);
+    }
+
+    function onAddImage(e) {
+        e.preventDefault();
+        if (fileInput) fileInput.click();
+    }
+
+    function onConfirm() {
+        if (!isGroup) return alert('Chỉ nhóm mới có thể thay avatar');
+        const url = input.value.trim();
+        if (!url) return alert('Nhập URL ảnh hợp lệ');
+        // update current chat avatar
+        currentChat.avatar = url;
+        // update UI
+        const chatAvatarEl = document.getElementById('chatAvatar');
+        if (chatAvatarEl) chatAvatarEl.src = url;
+        renderConversations(allChats);
+        // save
+        const cu = getCurrentUser();
+        if (cu) saveUserChats(cu, allChats);
+        close();
+    }
+
+    if (closeBtn) closeBtn.addEventListener('click', onCancel);
+    if (confirm) confirm.addEventListener('click', onConfirm);
+    input.addEventListener('input', onInput);
+    if (fileInput) fileInput.addEventListener('change', onFile);
+
+    // populate default avatars
+    if (defaultGrid) {
+        const DEFAULT_AVATARS = [
+            'https://i.pravatar.cc/150?img=21',
+            'https://i.pravatar.cc/150?img=22',
+            'https://i.pravatar.cc/150?img=23',
+            'https://i.pravatar.cc/150?img=24',
+            'https://i.pravatar.cc/150?img=25',
+            'https://i.pravatar.cc/150?img=26',
+            'https://i.pravatar.cc/150?img=27',
+            'https://i.pravatar.cc/150?img=28'
+        ];
+
+        DEFAULT_AVATARS.forEach(url => {
+            const el = document.createElement('img');
+            el.src = url;
+            el.alt = 'avatar';
+            el.className = 'default-avatar';
+            el.style.cursor = 'pointer';
+
+            const handler = (e) => {
+                // mark selection
+                Array.from(defaultGrid.children).forEach(c => c.classList.remove('selected'));
+                el.classList.add('selected');
+                input.value = url;
+                preview.src = url;
+            };
+            el._handler = handler;
+            el.addEventListener('click', handler);
+            defaultGrid.appendChild(el);
+        });
+    }
+
+    // wire add image button
+    if (addImageBtn && fileInput) {
+        addImageBtn.addEventListener('click', onAddImage);
+    }
+    if (updateAvatarBtn) {
+        updateAvatarBtn.addEventListener('click', onConfirm);
+    }
+    // members controls
+    function onAddMemberKeypress(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            onAddMember();
+        }
+    }
+    if (addMemberBtn) addMemberBtn.addEventListener('click', onAddMember);
+    if (addMemberInput) addMemberInput.addEventListener('keypress', onAddMemberKeypress);
+    function onClickTabAvatar() { selectTab('avatar'); }
+    function onClickTabMembers() { selectTab('members'); }
+    if (tabAvatar) tabAvatar.addEventListener('click', onClickTabAvatar);
+    if (tabMembers) tabMembers.addEventListener('click', onClickTabMembers);
+    } catch (err) {
+        console.error('openChangeAvatarModal error', err);
+        alert('Lỗi khi mở panel. Xem console để biết chi tiết.');
+    }
+}
+
+// Process an image source (dataURL or URL) into a square dataURL of given size.
+// callback(resultDataUrl, err)
+function processImageToSquare(src, size, callback) {
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = function() {
+        try {
+            const min = Math.min(img.width, img.height);
+            const sx = Math.max(0, Math.floor((img.width - min) / 2));
+            const sy = Math.max(0, Math.floor((img.height - min) / 2));
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            // draw center-cropped image to canvas resized to size x size
+            ctx.drawImage(img, sx, sy, min, min, 0, 0, size, size);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+            callback(dataUrl);
+        } catch (err) {
+            console.warn('processImageToSquare error during draw', err);
+            callback(null, err);
+        }
+    };
+    img.onerror = function(err) {
+        console.warn('processImageToSquare load error', err);
+        callback(null, err);
+    };
+    img.src = src;
 }
 
 // Render messages
@@ -418,18 +951,9 @@ function renderMessages(messages) {
     groups.forEach(group => {
         const msgDiv = document.createElement('div');
         msgDiv.className = `message-group ${group[0].sender === 'you' ? 'sent' : 'received'}`;
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-        
-=======
 
->>>>>>> Stashed changes
         group.forEach(msg => {
             // wrapper để hover icon
-=======
-
-        group.forEach(msg => {
->>>>>>> Stashed changes
             const bubbleWrapper = document.createElement('div');
             bubbleWrapper.className = 'message-bubble-wrapper';
             bubbleWrapper.style.position = 'relative';
@@ -508,7 +1032,12 @@ function renderMessages(messages) {
                     statusDiv.textContent = 'Đã nhận';
                     break;
                 case 'error':
-                    statusDiv.textContent = 'Gửi lỗi';
+                    statusDiv.innerHTML = `
+                        Gửi lỗi 
+                        <button class="retry-btn" style="margin-left:6px; cursor:pointer;">Thử lại</button>
+                    `;
+                    const retryBtn = statusDiv.querySelector('.retry-btn');
+                    retryBtn.addEventListener('click', () => retryMessage(lastMsg));
                     break;
             }
             msgDiv.appendChild(statusDiv);
@@ -517,15 +1046,7 @@ function renderMessages(messages) {
         const timeDiv = document.createElement('div');
         timeDiv.className = 'message-time';
         timeDiv.textContent = group[group.length - 1].time;
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-        
-=======
 
->>>>>>> Stashed changes
-=======
-
->>>>>>> Stashed changes
         msgDiv.appendChild(timeDiv);
 
         messagesContainer.appendChild(msgDiv);
@@ -533,6 +1054,13 @@ function renderMessages(messages) {
 
     // Scroll to bottom
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function retryMessage(msg) {
+    msg.status = 'sending';
+    renderMessages(currentChat.messages);
+
+    simulateSendResult(msg);
 }
 
 function handleIncomingMessage(data) {
@@ -553,6 +1081,8 @@ function handleIncomingMessage(data) {
     chat.lastMessage = msg.text;
     chat.timestamp = 'Bây giờ';
 
+    setUserActive(chat);
+
     if (!currentChat || currentChat.name !== chat.name) {
         chat.unread++;
     } else {
@@ -567,36 +1097,6 @@ function handleIncomingMessage(data) {
         saveUserChats(currentUser, allChats);
     }
 }
-
-let typingTimer;
-const typingStatus = document.getElementById('typingStatus');
-
-
-function handleTyping(data) {
-    if (!currentChat || data.from !== currentChat.name) return;
-
-    typingStatus.style.display = 'inline';
-
-    clearTimeout(typingTimer);
-    typingTimer = setTimeout(() => {
-        typingStatus.style.display = 'none';
-    }, 1500);
-}
-
-function updateUserStatus(username, online) {
-    const chat = allChats.find(c => c.name === username);
-    if (!chat) return;
-
-    chat.online = online;
-
-    if (currentChat && currentChat.name === username) {
-        chatStatus.textContent = online ? 'Đang hoạt động' : 'Không hoạt động';
-        chatStatus.className = `status ${online ? 'online' : ''}`;
-    }
-
-    renderConversations(allChats);
-}
-
 
 // Send message
 function sendMessage() {
@@ -623,6 +1123,13 @@ function sendMessage() {
     renderConversations(allChats);
 
     messageInput.value = '';
+
+    // Gọi fake API SEND_CHAT
+    if (fakeApiEnabled) {
+        fakeSendChatPeople(currentChat.name, text);
+    }
+
+    simulateSendResult(msg);
 
     // Lưu chats của user hiện tại
     const currentUser = getCurrentUser();
@@ -670,7 +1177,13 @@ function sendMessage() {
         };
 
         currentChat.messages.push(reply);
+        currentChat.lastMessage = reply.text;
+        currentChat.timestamp = 'Bây giờ';
+
+        setUserActive(currentChat);
+
         renderMessages(currentChat.messages);
+        renderConversations(allChats);
 
         // Lưu lại sau khi nhận reply
         const currentUser = getCurrentUser();
@@ -679,6 +1192,25 @@ function sendMessage() {
         }
     }, 800);
 }
+
+// gia lap khi gửi tin nhan cần retry
+function simulateSendResult(msg) {
+    // giả lập network delay
+    setTimeout(() => {
+
+        // 30% thất bại
+        const failed = Math.random() < 0.3;
+
+        if (failed) {
+            msg.status = 'failed';
+        } else {
+            msg.status = 'sent';
+        }
+
+        renderMessages(currentChat.messages);
+    }, 1000);
+}
+
 
 // Search
 function searchChats(query) {
@@ -824,6 +1356,14 @@ function attachEvents() {
         createGroupBtn.addEventListener('click', (e) => {
             e.preventDefault();
             createGroupPrompt();
+        });
+    }
+
+    const infoBtn = document.getElementById('infoBtn');
+    if (infoBtn) {
+        infoBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            openChangeAvatarModal();
         });
     }
 
