@@ -40,6 +40,7 @@ const mockData = [
 
 let currentChat = null;
 let allChats = [];
+const inactiveTimers = {};
 
 // DOM Elements
 const conversationsList = document.getElementById('conversationsList');
@@ -267,6 +268,7 @@ function generateInitialChats(username) {
             timestamp: 'Mới',
             online: index === 0, // User đầu tiên online
             unread: 0,
+            lastActive: Date.now(),
             messages: []
         }));
 
@@ -552,6 +554,42 @@ function openChat(chat) {
     const infoBtn = document.getElementById('infoBtn');
     if (infoBtn) infoBtn.style.display = 'inline-flex';
 }
+
+function setUserActive(chat) {
+    chat.online = true;
+    chat.lastActive = Date.now();
+
+    renderConversations(allChats);
+
+    // clear timer cũ nếu có
+    if (inactiveTimers[chat.id]) {
+        clearTimeout(inactiveTimers[chat.id]);
+    }
+
+    // tạo lại timer 5 phút
+    inactiveTimers[chat.id] = setTimeout(() => {
+        chat.online = false;
+        renderConversations(allChats);
+
+        if (currentChat && currentChat.id === chat.id) {
+            chatStatus.textContent = "Không hoạt động";
+            chatStatus.className = "status";
+        }
+
+        // lưu vào localStorage
+        const u = getCurrentUser();
+        if (u) saveUserChats(u, allChats);
+
+    }, 5 * 60 * 1000); // 5 phút
+
+    renderConversations(allChats);
+
+    if (currentChat && currentChat.id === chat.id) {
+        chatStatus.textContent = "Đang hoạt động";
+        chatStatus.className = "status online";
+    }
+}
+
 
 // Open info panel (shows group avatar controls when current chat is a group)
 function openChangeAvatarModal() {
@@ -1025,7 +1063,6 @@ function retryMessage(msg) {
     simulateSendResult(msg);
 }
 
-
 function handleIncomingMessage(data) {
     const chat = allChats.find(c => c.name === data.from);
     if (!chat) return;
@@ -1044,6 +1081,8 @@ function handleIncomingMessage(data) {
     chat.lastMessage = msg.text;
     chat.timestamp = 'Bây giờ';
 
+    setUserActive(chat);
+
     if (!currentChat || currentChat.name !== chat.name) {
         chat.unread++;
     } else {
@@ -1058,36 +1097,6 @@ function handleIncomingMessage(data) {
         saveUserChats(currentUser, allChats);
     }
 }
-
-let typingTimer;
-const typingStatus = document.getElementById('typingStatus');
-
-
-function handleTyping(data) {
-    if (!currentChat || data.from !== currentChat.name) return;
-
-    typingStatus.style.display = 'inline';
-
-    clearTimeout(typingTimer);
-    typingTimer = setTimeout(() => {
-        typingStatus.style.display = 'none';
-    }, 1500);
-}
-
-function updateUserStatus(username, online) {
-    const chat = allChats.find(c => c.name === username);
-    if (!chat) return;
-
-    chat.online = online;
-
-    if (currentChat && currentChat.name === username) {
-        chatStatus.textContent = online ? 'Đang hoạt động' : 'Không hoạt động';
-        chatStatus.className = `status ${online ? 'online' : ''}`;
-    }
-
-    renderConversations(allChats);
-}
-
 
 // Send message
 function sendMessage() {
@@ -1168,7 +1177,13 @@ function sendMessage() {
         };
 
         currentChat.messages.push(reply);
+        currentChat.lastMessage = reply.text;
+        currentChat.timestamp = 'Bây giờ';
+
+        setUserActive(currentChat);
+
         renderMessages(currentChat.messages);
+        renderConversations(allChats);
 
         // Lưu lại sau khi nhận reply
         const currentUser = getCurrentUser();
