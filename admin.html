@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Quản lý tài khoản</title>
+    <link rel="stylesheet" href="admin.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="admin-panel">
+        <!-- Sidebar -->
+        <div class="admin-sidebar">
+            <div class="admin-logo">
+                <i class="fas fa-shield-halved"></i>
+                <h2>Admin Panel</h2>
+            </div>
+            
+            <nav class="admin-nav">
+                <a href="#" class="nav-item active" data-section="dashboard">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-item" data-section="users">
+                    <i class="fas fa-users"></i>
+                    <span>Quản lý tài khoản</span>
+                </a>
+                <a href="#" class="nav-item" data-section="chats">
+                    <i class="fas fa-comments"></i>
+                    <span>Quản lý chat</span>
+                </a>
+            </nav>
+
+            <div class="admin-footer">
+                <div class="admin-user">
+                    <i class="fas fa-user-shield"></i>
+                    <span id="adminUsername">admin</span>
+                </div>
+                <button id="logoutBtn" class="btn-logout">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Đăng xuất
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="admin-main">
+            <!-- Header -->
+            <div class="admin-header">
+                <h1 id="pageTitle">Dashboard</h1>
+                <div class="header-actions">
+                    <button id="darkModeToggle" class="icon-btn">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <button id="refreshBtn" class="icon-btn">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dashboard Section -->
+            <div id="dashboardSection" class="content-section active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: #4CAF50;">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="totalUsers">0</h3>
+                            <p>Tổng tài khoản</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: #2196F3;">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="normalUsers">0</h3>
+                            <p>Người dùng</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: #FF9800;">
+                            <i class="fas fa-user-shield"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="adminUsers">0</h3>
+                            <p>Quản trị viên</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: #9C27B0;">
+                            <i class="fas fa-comments"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="totalChats">0</h3>
+                            <p>Tổng cuộc trò chuyện</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-charts">
+                    <div class="chart-card">
+                        <h3>Hoạt động gần đây</h3>
+                        <div id="recentActivity" class="activity-list">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Users Management Section -->
+            <div id="usersSection" class="content-section">
+                <div class="section-header">
+                    <h2>Quản lý tài khoản</h2>
+                    <button id="addUserBtn" class="btn-primary">
+                        <i class="fas fa-plus"></i>
+                        Thêm tài khoản
+                    </button>
+                </div>
+
+                <div class="search-filter">
+                    <input type="text" id="searchUser" placeholder="Tìm kiếm tài khoản...">
+                    <select id="filterRole">
+                        <option value="all">Tất cả</option>
+                        <option value="user">Người dùng</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>STT</th>
+                                <th>Tài khoản</th>
+                                <th>Vai trò</th>
+                                <th>Ngày tạo</th>
+                                <th>Trạng thái</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Chats Management Section -->
+            <div id="chatsSection" class="content-section">
+                <div class="section-header">
+                    <h2>Quản lý cuộc trò chuyện</h2>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>STT</th>
+                                <th>Tên nhóm/Người dùng</th>
+                                <th>Loại</th>
+                                <th>Số thành viên</th>
+                                <th>Tin nhắn</th>
+                                <th>Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="chatsTableBody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add User Modal -->
+    <div id="addUserModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Thêm tài khoản mới</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Tên tài khoản</label>
+                    <input type="text" id="newUsername" placeholder="Nhập tên tài khoản">
+                </div>
+                <div class="form-group">
+                    <label>Mật khẩu</label>
+                    <input type="password" id="newPassword" placeholder="Nhập mật khẩu">
+                </div>
+                <div class="form-group">
+                    <label>Xác nhận mật khẩu</label>
+                    <input type="password" id="confirmPassword" placeholder="Nhập lại mật khẩu">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="isAdminCheck">
+                        Tài khoản quản trị viên
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary close-modal">Hủy</button>
+                <button id="confirmAddUser" class="btn-primary">Thêm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div id="editUserModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Chỉnh sửa tài khoản</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Tên tài khoản</label>
+                    <input type="text" id="editUsername" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Mật khẩu mới (để trống nếu không đổi)</label>
+                    <input type="password" id="editPassword" placeholder="Nhập mật khẩu mới">
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="editIsAdmin">
+                        Tài khoản quản trị viên
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary close-modal">Hủy</button>
+                <button id="confirmEditUser" class="btn-primary">Cập nhật</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>

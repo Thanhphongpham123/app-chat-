@@ -81,6 +81,7 @@ function init() {
 function initializeDefaultAccounts() {
     const users = loadUsers();
     const defaultAccounts = [
+        { user: 'admin', pass: hashPw('admin'), isAdmin: true, createdAt: new Date().toLocaleDateString('vi-VN') },
         { user: 'Long', pass: hashPw('123') },
         { user: 'Phong', pass: hashPw('123') },
         { user: 'Toản', pass: hashPw('123') },
@@ -97,7 +98,7 @@ function initializeDefaultAccounts() {
 
     if (updated) {
         saveUsers(users);
-        console.log('Tài khoản mặc định đã được tạo: Long, Phong, Toản, Buu (mật khẩu: 123)');
+        console.log('Tài khoản mặc định đã được tạo: admin/admin (Admin), Long/123, Phong/123, Toản/123, Buu/123');
     }
 }
 
@@ -316,6 +317,12 @@ function loginAccount(user, pass) {
     // Gọi fake API LOGIN
     if (fakeApiEnabled) {
         fakeLogin(user, pass);
+    }
+
+    // Kiểm tra nếu là admin thì chuyển sang trang admin
+    if (user === 'admin' || u.isAdmin) {
+        window.location.href = 'admin.html';
+        return { ok: true, isAdmin: true };
     }
 
     // Load chats cho user này
