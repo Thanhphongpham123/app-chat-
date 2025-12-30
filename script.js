@@ -635,15 +635,30 @@ function openChangeAvatarModal() {
 
             const removeBtn = document.createElement('button');
             removeBtn.className = 'members-remove';
+            removeBtn.type = 'button'; // Thêm type button để tránh submit form
             removeBtn.textContent = 'Xóa';
+            
             // prevent removing yourself
-            if (name === cu) {
+            const isCurrentUser = (name === cu);
+            console.log('Creating remove button for:', name, 'Current user:', cu, 'Is same?', isCurrentUser);
+            
+            if (isCurrentUser) {
                 removeBtn.disabled = true;
                 removeBtn.title = 'Không thể xóa chính bạn';
+            } else {
+                removeBtn.disabled = false;
+                removeBtn.title = `Xóa ${name} khỏi nhóm`;
             }
-            removeBtn.addEventListener('click', () => {
-                onRemoveMember(name);
-            });
+            
+            removeBtn.onclick = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Remove button clicked for:', name);
+                console.log('Button disabled?', removeBtn.disabled);
+                if (!removeBtn.disabled) {
+                    onRemoveMember(name);
+                }
+            };
 
             row.appendChild(left);
             row.appendChild(removeBtn);
@@ -681,16 +696,61 @@ function openChangeAvatarModal() {
     }
 
     function onRemoveMember(name) {
+        console.log('onRemoveMember called with:', name);
+        console.log('isGroup:', isGroup);
+        console.log('currentChat:', currentChat);
+        console.log('currentChat.members:', currentChat?.members);
+        
         if (!isGroup) return alert('Chỉ nhóm mới có thể xóa thành viên');
         const cu = getCurrentUser();
+        console.log('Current user:', cu);
+        
         if (name === cu) return alert('Bạn không thể xóa chính mình khỏi nhóm');
-        if (!confirm(`Xóa thành viên "${name}" khỏi nhóm?`)) return;
+        if (!window.confirm(`Xóa thành viên "${name}" khỏi nhóm?`)) return;
         if ((currentChat.members || []).length <= 2) return alert('Nhóm phải có ít nhất 2 thành viên');
+        
+        // Xóa thành viên
         currentChat.members = (currentChat.members || []).filter(n => n !== name);
+        
+        // Cập nhật tên nhóm nếu tên nhóm được tạo tự động
+        const otherMembers = currentChat.members.filter(m => m !== cu);
+        if (currentChat.name.startsWith('Nhóm: ')) {
+            currentChat.name = `Nhóm: ${otherMembers.join(', ')}`;
+        }
+        
+        // Cập nhật lastMessage để thông báo
+        currentChat.lastMessage = `${name} đã bị xóa khỏi nhóm`;
+        currentChat.timestamp = 'Bây giờ';
+        
+        // Thêm tin nhắn hệ thống vào lịch sử chat
+        const systemMsg = {
+            id: Date.now(),
+            sender: 'system',
+            text: `${cu} đã xóa ${name} khỏi nhóm`,
+            time: new Date().toLocaleTimeString('vi-VN', {
+                hour: '2-digit',
+                minute: '2-digit'
+            })
+        };
+        currentChat.messages.push(systemMsg);
+        
+        // Cập nhật tên chat header nếu đang xem nhóm này
+        if (currentChat) {
+            const chatNameEl = document.getElementById('chatName');
+            if (chatNameEl) chatNameEl.textContent = currentChat.name;
+        }
+        
         // persist
         const user = getCurrentUser();
         if (user) saveUserChats(user, allChats);
+        
+        // Cập nhật UI
         renderMembersPanel();
+        renderConversations(allChats);
+        if (currentChat) renderMessages(currentChat.messages);
+        
+        // Hiển thị thông báo thành công
+        alert(`Đã xóa ${name} khỏi nhóm`);
     }
     panel.style.display = 'block';
     function selectTab(tab) {
@@ -708,7 +768,7 @@ function openChangeAvatarModal() {
     selectTab('avatar');
 
     const closeBtn = document.getElementById('closeInfoPanel');
-    const confirm = document.getElementById('confirmChangeAvatar');
+    const confirmBtn = document.getElementById('confirmChangeAvatar');
 
     let avatarProcessTimer = null;
 
@@ -716,7 +776,7 @@ function openChangeAvatarModal() {
         try {
             panel.style.display = 'none';
             if (closeBtn) closeBtn.removeEventListener('click', onCancel);
-            if (confirm) confirm.removeEventListener('click', onConfirm);
+            if (confirmBtn) confirmBtn.removeEventListener('click', onConfirm);
             if (input) input.removeEventListener('input', onInput);
             if (fileInput) fileInput.removeEventListener('change', onFile);
             if (addImageBtn) addImageBtn.removeEventListener('click', onAddImage);
@@ -803,7 +863,7 @@ function openChangeAvatarModal() {
     }
 
     if (closeBtn) closeBtn.addEventListener('click', onCancel);
-    if (confirm) confirm.addEventListener('click', onConfirm);
+    if (confirmBtn) confirmBtn.addEventListener('click', onConfirm);
     input.addEventListener('input', onInput);
     if (fileInput) fileInput.addEventListener('change', onFile);
 
@@ -911,6 +971,26 @@ function renderMessages(messages) {
     });
 
     groups.forEach(group => {
+        // Kiểm tra nếu là tin nhắn hệ thống
+        if (group[0].sender === 'system') {
+            const systemDiv = document.createElement('div');
+            systemDiv.className = 'system-message';
+            systemDiv.style.textAlign = 'center';
+            systemDiv.style.padding = '8px';
+            systemDiv.style.color = '#65676b';
+            systemDiv.style.fontSize = '12px';
+            systemDiv.style.fontStyle = 'italic';
+            
+            group.forEach(msg => {
+                const msgText = document.createElement('div');
+                msgText.textContent = msg.text;
+                systemDiv.appendChild(msgText);
+            });
+            
+            messagesContainer.appendChild(systemDiv);
+            return;
+        }
+
         const msgDiv = document.createElement('div');
         msgDiv.className = `message-group ${group[0].sender === 'you' ? 'sent' : 'received'}`;
 
