@@ -1016,3 +1016,9 @@ body.dark .auth-card{
     color:white;
 }
 
+.typing-status {
+    font-size: 13px;
+    color: gray;
+    padding: 4px 10px;
+}
+
