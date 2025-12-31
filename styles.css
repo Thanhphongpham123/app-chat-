@@ -587,32 +587,80 @@ body {
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding: 6px 8px;
+    padding: 8px 10px;
     border: 1px solid #eee;
     border-radius: 8px;
     background: #fafafa;
+    transition: background 0.2s ease;
 }
-.members-name { font-size: 13px; color: #333; }
-.members-left { display:flex; align-items:center; gap:8px }
+.members-row:hover {
+    background: #f0f0f0;
+}
+.members-name { 
+    font-size: 13px; 
+    color: #333;
+    font-weight: 500;
+}
+.members-left { 
+    display:flex; 
+    align-items:center; 
+    gap:10px;
+    flex: 1;
+}
 .members-avatar {
-    width: 24px;
-    height: 24px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     object-fit: cover;
-    border: 1px solid #e8e8e8;
+    border: 2px solid #e8e8e8;
 }
 .members-remove {
-    padding: 6px 10px;
-    border-radius: 8px;
-    background: #f8d7da;
-    color: #842029;
+    padding: 6px 12px;
+    border-radius: 6px;
+    background: #ff4444;
+    color: white;
     border: none;
     cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.2s ease;
 }
-.members-remove:hover { filter: brightness(0.96); }
+.members-remove:hover { 
+    background: #cc0000;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(255, 68, 68, 0.3);
+}
 .members-remove:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
+    background: #ccc;
+    color: #666;
+}
+.members-remove:disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+/* System message styles */
+.system-message {
+    text-align: center;
+    padding: 12px 20px;
+    margin: 8px 0;
+}
+.system-message div {
+    display: inline-block;
+    background: #f0f0f0;
+    color: #65676b;
+    font-size: 12px;
+    font-style: italic;
+    padding: 6px 12px;
+    border-radius: 12px;
+}
+
+/* Dark mode support for system messages */
+body.dark .system-message div {
+    background: #1b1b1b;
+    color: #a0a0a0;
 }
 
 /* collapsible content spacing */
