@@ -41,6 +41,7 @@ const mockData = [
 let currentChat = null;
 let allChats = [];
 const inactiveTimers = {};
+let typingTimer = null;
 
 // DOM Elements
 const conversationsList = document.getElementById('conversationsList');
@@ -1077,7 +1078,30 @@ function handleIncomingMessage(data) {
         })
     };
 
+    // khi đối phương đang nhập
+    if (data.event === "TYPING") {
+        if (currentChat && currentChat.name === data.from) {
+            const typingStatus = document.getElementById("typingStatus");
+            if (!typingStatus) return;
+            typingStatus.textContent = "Đang nhập...";
+            typingStatus.style.display = "block";
+
+            // auto ẩn sau 3s nếu không nhập nữa
+            clearTimeout(typingTimer);
+            typingTimer = setTimeout(() => {
+                const typingStatus = document.getElementById("typingStatus");
+                if (!typingStatus) return
+                typingStatus.style.display = "none";
+            }, 3000);
+        }
+        return;
+    }
+
     chat.messages.push(msg);
+
+    const typingStatus = document.getElementById("typingStatus");
+    if (typingStatus) typingStatus.style.display = "none";
+
     chat.lastMessage = msg.text;
     chat.timestamp = 'Bây giờ';
 
@@ -1333,7 +1357,7 @@ function attachEvents() {
             sendMessage();
         }
     });
-
+    let typingTimeout = null;
     messageInput.addEventListener('input', () => {
         if (!currentChat) return;
 
@@ -1341,6 +1365,17 @@ function attachEvents() {
             action: 'onchat',
             data: { event: 'TYPING', data: { to: currentChat.name } }
         });
+
+        // nếu bạn muốn hiện “Đang nhập…” ở phía bạn luôn
+        const typingStatus = document.getElementById("typingStatus");
+        typingStatus.textContent = "Đang nhập...";
+        typingStatus.style.display = "block";
+
+        // reset timeout ẩn sau 3s không gõ
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+            typingStatus.style.display = "none";
+        }, 3000);
     });
 
 
