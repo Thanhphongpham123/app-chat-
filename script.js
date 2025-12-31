@@ -814,6 +814,7 @@ function openChangeAvatarModal() {
     selectTab('avatar');
 
     const closeBtn = document.getElementById('closeInfoPanel');
+    const deleteBtn = document.getElementById('deleteGroupBtn');
     const confirmBtn = document.getElementById('confirmChangeAvatar');
 
     let avatarProcessTimer = null;
@@ -822,6 +823,7 @@ function openChangeAvatarModal() {
         try {
             panel.style.display = 'none';
             if (closeBtn) closeBtn.removeEventListener('click', onCancel);
+            if (deleteBtn) deleteBtn.removeEventListener('click', onDeleteGroup);
             if (confirmBtn) confirmBtn.removeEventListener('click', onConfirm);
             if (input) input.removeEventListener('input', onInput);
             if (fileInput) fileInput.removeEventListener('change', onFile);
@@ -912,6 +914,13 @@ function openChangeAvatarModal() {
     if (confirmBtn) confirmBtn.addEventListener('click', onConfirm);
     input.addEventListener('input', onInput);
     if (fileInput) fileInput.addEventListener('change', onFile);
+    // show/hide delete button in Members section and wire handler
+    if (deleteBtn) {
+        deleteBtn.style.display = isGroup ? '' : 'none';
+        // ensure no duplicate listeners
+        deleteBtn.removeEventListener('click', onDeleteGroup);
+        deleteBtn.addEventListener('click', onDeleteGroup);
+    }
 
     // populate default avatars
     if (defaultGrid) {
@@ -966,6 +975,36 @@ function openChangeAvatarModal() {
     function onClickTabMembers() { selectTab('members'); }
     if (tabAvatar) tabAvatar.addEventListener('click', onClickTabAvatar);
     if (tabMembers) tabMembers.addEventListener('click', onClickTabMembers);
+    
+    // Delete group handler
+    function onDeleteGroup(e) {
+        e && e.preventDefault();
+        if (!currentChat || !currentChat.isGroup) return alert('Chỉ nhóm mới có thể xóa');
+        const cu = getCurrentUser();
+        if (!cu) return alert('Vui lòng đăng nhập');
+        if (!confirm(`Bạn có chắc muốn xóa nhóm "${currentChat.name}"?`)) return;
+
+        // Remove from chats
+        allChats = allChats.filter(c => c.id !== currentChat.id);
+
+        // Persist for current user
+        if (cu) saveUserChats(cu, allChats);
+
+        // Close panel
+        close();
+
+        // If the deleted group is currently open, close chat window
+        if (currentChat && currentChat.id === undefined) {
+            // no-op
+        }
+        // reset currentChat and UI
+        currentChat = null;
+        chatWindow.style.display = 'none';
+        emptyChat.style.display = 'flex';
+
+        renderConversations(allChats);
+        alert('Nhóm đã được xóa');
+    }
     } catch (err) {
         console.error('openChangeAvatarModal error', err);
         alert('Lỗi khi mở panel. Xem console để biết chi tiết.');
