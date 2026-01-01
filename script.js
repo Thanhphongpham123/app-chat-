@@ -444,12 +444,17 @@ function renderConversations(chats) {
             <img src="${chat.avatar}" alt="" class="conversation-avatar">
             <div class="conversation-info">
                 <div class="conversation-header">
-                    <span class="conversation-name">${chat.name}</span>
-                    <span class="conversation-time">${chat.timestamp || ''}</span>
+                    <span class="conversation-name">
+                        ${chat.name}
+                        ${chat.unread > 0 ? `<span class="badge-unread">${chat.unread}</span>` : ''}
+                    </span>
                     <span class="conversation-menu-icon" style="display:none; cursor:pointer;">⋯</span>
                 </div>
                 <div class="conversation-message ${chat.unread > 0 ? 'unread' : ''}">
                     ${chat.lastMessage || ''}
+                    
+                    <span class="conversation-time">${chat.timestamp || ''}</span>
+        
                 </div>
             </div>
             ${chat.online ? '<div class="online-badge"></div>' : ''}
@@ -591,6 +596,9 @@ function openChat(chat) {
 
     // Clear unread
     chat.unread = 0;
+
+    // Lưu lại danh sách chat sau khi clear unread
+    saveUserChats(getCurrentUser(), allChats);
 
     // Render messages
     renderMessages(chat.messages);

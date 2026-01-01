@@ -170,6 +170,20 @@ body {
     font-size: 14px;
 }
 
+.badge-unread {
+    background: red;
+    color: white;
+    border-radius: 50%;
+    padding: 1px 4px;
+    font-size: 11px;
+    margin-left: 6px;
+    min-width: 16px;
+    text-align: center;
+    display: inline-block;
+    font-weight: bold;
+    transform: translateY(-2px);
+}
+
 .conversation-time {
     font-size: 12px;
     color: #65676b;
@@ -186,6 +200,12 @@ body {
 .conversation-message.unread {
     font-weight: 500;
     color: #000;
+}
+
+.conversation-time {
+    font-size: 12px;
+    color: #888;
+    white-space: nowrap;
 }
 
 .online-badge {
@@ -596,14 +616,14 @@ body {
 .members-row:hover {
     background: #f0f0f0;
 }
-.members-name { 
-    font-size: 13px; 
+.members-name {
+    font-size: 13px;
     color: #333;
     font-weight: 500;
 }
-.members-left { 
-    display:flex; 
-    align-items:center; 
+.members-left {
+    display:flex;
+    align-items:center;
     gap:10px;
     flex: 1;
 }
@@ -625,7 +645,7 @@ body {
     font-weight: 500;
     transition: all 0.2s ease;
 }
-.members-remove:hover { 
+.members-remove:hover {
     background: #cc0000;
     transform: translateY(-1px);
     box-shadow: 0 2px 6px rgba(255, 68, 68, 0.3);
