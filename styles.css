@@ -160,6 +160,20 @@ body {
     font-size: 14px;
 }
 
+.badge-unread {
+    background: red;
+    color: white;
+    border-radius: 50%;
+    padding: 1px 4px;
+    font-size: 11px;
+    margin-left: 6px;
+    min-width: 16px;
+    text-align: center;
+    display: inline-block;
+    font-weight: bold;
+    transform: translateY(-2px);
+}
+
 .conversation-time {
     font-size: 12px;
     color: #65676b;
@@ -176,6 +190,12 @@ body {
 .conversation-message.unread {
     font-weight: 500;
     color: #000;
+}
+
+.conversation-time {
+    font-size: 12px;
+    color: #888;
+    white-space: nowrap;
 }
 
 .online-badge {
@@ -489,6 +509,109 @@ body {
     }
 }
 
+<<<<<<< HEAD
+=======
+/* Members management styles */
+.members-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    background: #fafafa;
+    transition: background 0.2s ease;
+}
+.members-row:hover {
+    background: #f0f0f0;
+}
+.members-name {
+    font-size: 13px;
+    color: #333;
+    font-weight: 500;
+}
+.members-left {
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex: 1;
+}
+.members-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #e8e8e8;
+}
+.members-remove {
+    padding: 6px 12px;
+    border-radius: 6px;
+    background: #ff4444;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+.members-remove:hover {
+    background: #cc0000;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(255, 68, 68, 0.3);
+}
+.members-remove:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #ccc;
+    color: #666;
+}
+.members-remove:disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+/* System message styles */
+.system-message {
+    text-align: center;
+    padding: 12px 20px;
+    margin: 8px 0;
+}
+.system-message div {
+    display: inline-block;
+    background: #f0f0f0;
+    color: #65676b;
+    font-size: 12px;
+    font-style: italic;
+    padding: 6px 12px;
+    border-radius: 12px;
+}
+
+/* Dark mode support for system messages */
+body.dark .system-message div {
+    background: #1b1b1b;
+    color: #a0a0a0;
+}
+
+/* collapsible content spacing */
+.members-content { margin-top: 8px; }
+
+/* Info panel two-column layout */
+.panel-columns {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+.panel-col {
+    flex: 1;
+    min-width: 0;
+}
+
+@media (max-width: 840px) {
+    .panel-columns { flex-direction: column; }
+}
+
+>>>>>>> 1d11247 (hien thi so tin nhan den)
 /* Auth overlay styles */
 .auth-overlay {
     position: fixed;
