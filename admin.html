@@ -241,6 +241,30 @@
         </div>
     </div>
 
+    <!-- View Chat Modal -->
+    <div id="viewChatModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3>Chi tiết cuộc trò chuyện: <span id="chatDetailName"></span></h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body" style="max-height: 500px; overflow-y: auto;">
+                <div class="chat-info">
+                    <p><strong>Chủ sở hữu:</strong> <span id="chatOwner"></span></p>
+                    <p><strong>Loại:</strong> <span id="chatType"></span></p>
+                    <p><strong>Số tin nhắn:</strong> <span id="chatMessageCount"></span></p>
+                </div>
+                <hr style="margin: 15px 0;">
+                <div id="chatMessagesContent" class="chat-messages-list">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary close-modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+
     <script src="admin.js"></script>
 </body>
 </html>

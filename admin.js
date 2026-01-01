@@ -425,6 +425,9 @@ function loadChatsTable() {
                 <td>${chat.isGroup ? (chat.members?.length || 0) : 2}</td>
                 <td>${chat.messages?.length || 0}</td>
                 <td class="action-btns">
+                    <button class="btn-icon btn-edit" onclick="viewChatDetail('${escapeHtml(user.user)}', ${chat.id})" title="Xem chi tiết">
+                        <i class="fas fa-eye"></i>
+                    </button>
                     <button class="btn-icon btn-delete" onclick="deleteChat('${user.user}', ${chat.id})" title="Xóa cuộc trò chuyện">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -437,6 +440,51 @@ function loadChatsTable() {
     if (chatIndex === 1) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Chưa có cuộc trò chuyện nào</td></tr>';
     }
+}
+
+// View chat detail
+function viewChatDetail(username, chatId) {
+    const chats = loadUserChats(username);
+    const chat = chats.find(c => c.id === chatId);
+    
+    if (!chat) {
+        alert('Không tìm thấy cuộc trò chuyện');
+        return;
+    }
+    
+    // Fill modal info
+    document.getElementById('chatDetailName').textContent = chat.name;
+    document.getElementById('chatOwner').textContent = username;
+    document.getElementById('chatType').textContent = chat.isGroup ? 'Nhóm chat' : 'Chat 1-1';
+    document.getElementById('chatMessageCount').textContent = chat.messages?.length || 0;
+    
+    // Display messages
+    const messagesContent = document.getElementById('chatMessagesContent');
+    messagesContent.innerHTML = '';
+    
+    if (!chat.messages || chat.messages.length === 0) {
+        messagesContent.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">Chưa có tin nhắn nào</p>';
+    } else {
+        chat.messages.forEach(msg => {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message-item ${msg.sender === 'me' ? 'message-sent' : 'message-received'}`;
+            
+            const senderName = msg.sender === 'me' ? username : chat.name;
+            const timestamp = msg.time || msg.timestamp || 'N/A';
+            
+            msgDiv.innerHTML = `
+                <div class="message-header">
+                    <strong>${escapeHtml(senderName)}</strong>
+                    <span class="message-time">${escapeHtml(timestamp)}</span>
+                </div>
+                <div class="message-text">${escapeHtml(msg.text || msg.content || '')}</div>
+            `;
+            messagesContent.appendChild(msgDiv);
+        });
+    }
+    
+    // Show modal
+    document.getElementById('viewChatModal').classList.add('active');
 }
 
 // Delete chat
