@@ -522,6 +522,54 @@ function renderConversations(chats) {
     });
 }
 
+// nhan tin nhan tu nhan tu dong tu doi phuong
+setInterval(() => {
+
+    const currentUser = getCurrentUser();
+    if (!currentUser) return;
+
+    allChats = loadUserChats(currentUser);
+    if (!allChats || allChats.length === 0) return;
+
+    const randomChat = allChats[Math.floor(Math.random() * allChats.length)];
+
+    const autoReplies = [
+        "Bạn đang làm gì vậy?",
+        "Tối nay rảnh không?",
+        "Ok nhé.",
+        "Để mai mình trả lời nha.",
+        "👌",
+        "Có bài tập chưa?",
+        "Ăn cơm chưa?",
+        "Đang làm gì đó?"
+    ];
+
+    const msg = {
+        id: Date.now(),
+        sender: "them",
+        text: autoReplies[Math.floor(Math.random() * autoReplies.length)],
+        time: new Date().toLocaleTimeString('vi-VN', {
+            hour: '2-digit',
+            minute: '2-digit'
+        })
+    };
+
+    randomChat.messages.push(msg);
+    randomChat.lastMessage = msg.text;
+    randomChat.timestamp = "Vừa xong";
+
+    if (!currentChat || currentChat.id !== randomChat.id) {
+        randomChat.unread = (randomChat.unread || 0) + 1;
+    } else {
+        renderMessages(randomChat.messages);
+    }
+
+    saveUserChats(currentUser, allChats);
+    renderConversations(allChats);
+
+}, 30 * 1000);
+
+
 // Open chat
 function openChat(chat) {
     currentChat = chat;
