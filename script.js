@@ -1087,7 +1087,24 @@ function renderMessages(messages) {
 
             const bubble = document.createElement('div');
             bubble.className = 'message-bubble';
-            bubble.textContent = msg.text;
+            // support image messages
+            if (msg.image) {
+                const imgEl = document.createElement('img');
+                imgEl.src = msg.image;
+                imgEl.style.maxWidth = '320px';
+                imgEl.style.maxHeight = '320px';
+                imgEl.style.borderRadius = '8px';
+                imgEl.style.display = 'block';
+                imgEl.style.objectFit = 'cover';
+                bubble.appendChild(imgEl);
+                if (msg.text) {
+                    const caption = document.createElement('div');
+                    caption.textContent = msg.text;
+                    bubble.appendChild(caption);
+                }
+            } else {
+                bubble.textContent = msg.text || '';
+            }
 
             // icon mneu 3 chấm
             const icon = document.createElement('div');
@@ -1118,11 +1135,12 @@ function renderMessages(messages) {
 
             // các chức năng menu
             menu.querySelector('.copy-msg').addEventListener('click', () => {
-                navigator.clipboard.writeText(msg.text);
+                navigator.clipboard.writeText(msg.text || msg.image || '');
                 menu.style.display = 'none';
             });
             menu.querySelector('.recall-msg').addEventListener('click', () => {
-                // Thu hồi: xóa tin nhắn và thông báo "Tin nhắn đã thu hồi"
+                // Thu hồi: xóa nội dung tin nhắn (ảnh hoặc text) và thông báo "Tin nhắn đã thu hồi"
+                msg.image = undefined;
                 msg.text = 'Tin nhắn đã thu hồi';
                 renderMessages(messages);
             });
@@ -1541,6 +1559,62 @@ function attachEvents() {
             emojiPopup.style.display = 'none';
         }
     });
+
+    // Image send button and file input
+    const imageBtn = document.getElementById('imageBtn');
+    const imageFileInput = document.getElementById('imageFileInput');
+    if (imageBtn) {
+        imageBtn.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            if (!currentChat || !currentChat.isGroup) return alert('Chỉ nhóm mới có thể gửi ảnh');
+            if (imageFileInput) imageFileInput.click();
+        });
+    }
+    if (imageFileInput) {
+        imageFileInput.addEventListener('change', (ev) => {
+            const f = ev.target.files && ev.target.files[0];
+            if (!f) return;
+            const reader = new FileReader();
+            reader.onload = function(e2) {
+                const dataUrl = e2.target.result;
+                // resize/process to reasonable size
+                processImageToSquare(dataUrl, 800, (processed) => {
+                    const imgData = processed || dataUrl;
+                    if (!currentChat) return alert('Vui lòng mở cuộc trò chuyện');
+                    if (!currentChat.isGroup) return alert('Chỉ nhóm mới có thể gửi ảnh');
+
+                    const now = new Date();
+                    const time = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+                    const msg = {
+                        id: Date.now(),
+                        sender: 'you',
+                        image: imgData,
+                        text: '',
+                        time: time,
+                        status: 'sending'
+                    };
+
+                    currentChat.messages.push(msg);
+                    currentChat.lastMessage = '[Ảnh]';
+                    currentChat.timestamp = 'Bây giờ';
+                    renderMessages(currentChat.messages);
+                    renderConversations(allChats);
+
+                    // fake API: send to room
+                    if (fakeApiEnabled) fakeSendChatRoom(currentChat.name, imgData);
+
+                    simulateSendResult(msg);
+
+                    const cu = getCurrentUser();
+                    if (cu) saveUserChats(cu, allChats);
+                });
+            };
+            reader.readAsDataURL(f);
+            // clear value so selecting same file again will trigger change
+            ev.target.value = '';
+        });
+    }
 
 // Click ra ngoài thì đóng popup (giống Messenger)
     document.addEventListener('click', () => {
