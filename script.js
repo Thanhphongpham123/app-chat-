@@ -453,7 +453,7 @@ function renderConversations(chats) {
                 <div class="conversation-message ${chat.unread > 0 ? 'unread' : ''}">
                     ${chat.lastMessage || ''}
                     
-                    <span class="conversation-time">${chat.timestamp || ''}</span>
+                    <span class="conversation-time">${chat.timestamp ? formatTimestamp(chat.timestamp) : ''}</span>
         
                 </div>
             </div>
@@ -534,6 +534,23 @@ function renderConversations(chats) {
     });
 }
 
+// set format thoi gian
+function formatTimestamp(ts) {
+    if (typeof ts !== "number") return ts;
+    const now = Date.now();
+    const diff = Math.floor((now - ts) / 1000);
+
+    if (diff < 60) return "Vừa xong";
+    if (diff < 3600) return Math.floor(diff / 60) + " phút trước";
+    if (diff < 86400) return Math.floor(diff / 3600) + " giờ trước";
+
+    const d = new Date(ts);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleDateString('vi-VN') + " " +
+        d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+}
+
+
 // nhan tin nhan tu nhan tu dong tu doi phuong
 setInterval(() => {
 
@@ -568,7 +585,7 @@ setInterval(() => {
 
     randomChat.messages.push(msg);
     randomChat.lastMessage = msg.text;
-    randomChat.timestamp = "Vừa xong";
+    randomChat.timestamp = Date.now();
 
     if (!currentChat || currentChat.id !== randomChat.id) {
         randomChat.unread = (randomChat.unread || 0) + 1;
