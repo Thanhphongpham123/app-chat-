@@ -730,40 +730,6 @@ body.dark .system-message div {
     color: gray;
 }
 
-/* Icon 3 chấm */
-.message-actions-icon {
-    display: none;
-    position: absolute;
-    left: -30px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background-color: #ccc;
-    color: #333;
-    font-weight: bold;
-    text-align: center;
-    line-height: 24px;
-    cursor: pointer;
-    z-index: 10;
-}
-
-/* Menu popup */
-.message-actions-menu {
-    display: none;
-    position: absolute;
-    left: -120px; /* điều chỉnh cho vừa ý */
-    top: 50%;
-    transform: translateY(-50%);
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-    z-index: 20;
-    min-width: 100px;
-}
-
 .message-actions-menu div {
     padding: 6px 10px;
     cursor: pointer;
@@ -793,6 +759,28 @@ body.dark .system-message div {
     position: relative;
 }
 
+/* icon ... ban than */
+.message-group.sent .message-actions-icon {
+    left: -25px;
+}
+
+/*icon ... doi phuong*/
+.message-group.received .message-actions-icon {
+    right: -25px;
+}
+
+/*menu popup ban than*/
+.message-group.sent .message-actions-menu {
+    right: 100%;
+    margin-right: 15px;
+}
+
+/*menu popup doi phuong*/
+.message-group.received .message-actions-menu {
+    left: 100%;
+    margin-left: 15px;
+}
+
 .message-status {
     position: absolute;
     bottom: -15px;
@@ -812,7 +800,7 @@ body.dark .system-message div {
     height: 24px;
     border-radius: 50%;
     background-color: #ccc;
-    color: #333;
+    color: #595959;
     font-weight: bold;
     text-align: center;
     line-height: 24px;
@@ -824,7 +812,6 @@ body.dark .system-message div {
 .message-actions-menu {
     display: none;
     position: absolute;
-    left: -120px;
     top: 50%;
     transform: translateY(-50%);
     background: white;

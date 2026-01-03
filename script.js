@@ -1040,7 +1040,13 @@ function renderMessages(messages) {
             const icon = document.createElement('div');
             icon.className = 'message-actions-icon';
             icon.textContent = '⋯';
+            if (group[0].sender === 'you') {
+                icon.style.right = 'auto';
+            } else {
+                icon.style.left = 'auto';
+            }
             bubbleWrapper.appendChild(icon);
+
 
             // menu
             const menu = document.createElement('div');
