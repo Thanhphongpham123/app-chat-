@@ -355,6 +355,21 @@ body {
     text-align: center;
 }
 
+.day-separator{
+    text-align:center;
+    margin:12px 0;
+}
+
+.day-separator span{
+    background:#f2f2f2;
+    padding:6px 14px;
+    border-radius:20px;
+    color:#555;
+    font-size:12px;
+    font-style:italic;
+    display:inline-block;
+}
+
 .message-group.sent .message-time {
     text-align: right;
 }

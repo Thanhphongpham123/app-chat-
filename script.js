@@ -550,6 +550,39 @@ function formatTimestamp(ts) {
         d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 }
 
+// format nhom tin nhan theo ngay
+function formatChatDateLabel(dateStr){
+    let d = new Date(dateStr);
+    if(isNaN(d)) return "";
+
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+
+    const target = new Date(d);
+    target.setHours(0,0,0,0);
+
+    //hom nay
+    if(target.getTime() === today.getTime()) return "Hôm nay";
+
+    //hom qua (gio + hom qua)
+    if (target.getTime() === yesterday.getTime()){
+        const hh = d.getHours().toString().padStart(2,"0");
+        const mm = d.getMinutes().toString().padStart(2,"0");
+        return `${hh}:${mm} • Hôm qua`;
+    }
+
+    //cac ngay truoc hom qua
+    const weekdays = ["CN","T2","T3","T4","T5","T6","T7"];
+    const weekday = weekdays[d.getDay()];
+    const day = d.getDate();
+    const month = d.getMonth() + 1;
+    const year = d.getFullYear();
+
+    return `${weekday} ${day}/${month}/${year}`;
+}
 
 // nhan tin nhan tu nhan tu dong tu doi phuong
 setInterval(() => {
@@ -1128,7 +1161,69 @@ function renderMessages(messages) {
         }
     });
 
+    let lastDate = null;
+    let lastTime = null;
+    const TIME_GAP_MIN = 120;
+
     groups.forEach(group => {
+        const firstMsg = group[0];
+        let dateObj;
+
+        if (firstMsg.fullTime) {
+            dateObj = new Date(firstMsg.fullTime);
+        } else {
+            // neu chua co ngay thi lay hom nay
+            let dateStr = firstMsg.date;
+            if (!dateStr) {
+                dateStr = new Date().toISOString().split("T")[0];
+                firstMsg.date = dateStr;
+            }
+            // neu co time
+            if (firstMsg.time) {
+                dateObj = new Date(`${dateStr}T${firstMsg.time}:00`);
+            } else {
+                dateObj = new Date(dateStr);
+            }
+        }
+        const dateKey = dateObj.getFullYear() + "-" +
+            String(dateObj.getMonth() + 1).padStart(2, "0") + "-" +
+            String(dateObj.getDate()).padStart(2, "0");
+
+        const today = new Date();
+        const isToday =
+            dateObj.getDate() === today.getDate() &&
+            dateObj.getMonth() === today.getMonth() &&
+            dateObj.getFullYear() === today.getFullYear();
+
+        // chi tao separator khi doi ngay
+        if (dateKey !== lastDate) {
+            lastDate = dateKey;
+            lastTime = dateObj.getTime(); // reset moc gio trong ngay
+
+            const sep = document.createElement("div");
+            sep.className = "day-separator";
+            sep.innerHTML = `<span>${formatChatDateLabel(dateObj)}</span>`;
+            messagesContainer.appendChild(sep);
+            return;
+        }
+
+        // cung hom nay neu cach xa thoi gian thi them gio + hom nay
+        const diffMinutes = Math.abs(dateObj.getTime() - lastTime) / 60000;
+        if (diffMinutes >= TIME_GAP_MIN) {
+            lastTime = dateObj.getTime();
+            const hh = dateObj.getHours().toString().padStart(2, "0");
+            const mm = dateObj.getMinutes().toString().padStart(2, "0");
+            const sep = document.createElement("div");
+            sep.className = "day-separator";
+
+            if (isToday) {
+                sep.innerHTML = `<span>${hh}:${mm} Hôm nay</span>`;
+            } else {
+                sep.innerHTML = `<span>${hh}:${mm} ${formatChatDateLabel(dateObj)}</span>`;
+            }
+            messagesContainer.appendChild(sep);
+        }
+
         // Kiểm tra nếu là tin nhắn hệ thống
         if (group[0].sender === 'system') {
             const systemDiv = document.createElement('div');
@@ -1358,6 +1453,8 @@ function sendMessage() {
         sender: 'you',
         text: text,
         time: time,
+        date: new Date().toISOString().split("T")[0],
+        fullTime: new Date().toISOString(),
         status: 'sending' // trạng thái mới
     };
 
