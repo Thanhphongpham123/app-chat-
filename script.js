@@ -734,6 +734,8 @@ function openChangeAvatarModal() {
     const addImageBtn = document.getElementById('addImageBtn');
     const updateAvatarBtn = document.getElementById('updateAvatarBtn');
     const membersList = document.getElementById('panelMembersList');
+    const renameInput = document.getElementById('renameGroupInput');
+    const renameBtn = document.getElementById('renameGroupBtn');
     const addMemberInput = document.getElementById('addMemberInput');
     const addMemberBtn = document.getElementById('addMemberBtn');
     const tabAvatar = document.getElementById('tabAvatar');
@@ -744,6 +746,7 @@ function openChangeAvatarModal() {
     input.value = (currentChat && currentChat.avatar) || '';
     preview.src = (currentChat && currentChat.avatar) || '';
     if (fileInput) fileInput.value = '';
+    if (renameInput) renameInput.value = (currentChat && currentChat.name) || '';
     function renderMembersPanel() {
         if (!membersList) return;
         membersList.innerHTML = '';
@@ -940,6 +943,8 @@ function openChangeAvatarModal() {
             if (addMemberInput) addMemberInput.removeEventListener('keypress', onAddMemberKeypress);
             if (tabAvatar) tabAvatar.removeEventListener('click', onClickTabAvatar);
             if (tabMembers) tabMembers.removeEventListener('click', onClickTabMembers);
+            if (renameBtn) renameBtn.removeEventListener('click', onRename);
+            if (renameInput) renameInput.removeEventListener('keypress', onRenameKeypress);
             // cleanup default avatars listeners
             if (defaultGrid) {
                 Array.from(defaultGrid.children).forEach(img => {
@@ -1081,6 +1086,45 @@ function openChangeAvatarModal() {
     function onClickTabMembers() { selectTab('members'); }
     if (tabAvatar) tabAvatar.addEventListener('click', onClickTabAvatar);
     if (tabMembers) tabMembers.addEventListener('click', onClickTabMembers);
+
+    // Rename group handlers
+    function onRename() {
+        if (!isGroup) return alert('Chỉ nhóm mới có thể đổi tên');
+        const cu = getCurrentUser();
+        if (!cu) return alert('Vui lòng đăng nhập');
+        const newName = (renameInput && renameInput.value || '').trim();
+        if (!newName) return alert('Nhập tên nhóm hợp lệ');
+        const oldName = currentChat.name;
+        currentChat.name = newName;
+        currentChat.lastMessage = `${cu} đã đổi tên nhóm thành "${newName}"`;
+        currentChat.timestamp = 'Bây giờ';
+        const sysMsg = {
+            id: Date.now(),
+            sender: 'system',
+            text: `${cu} đã đổi tên nhóm từ "${oldName}" thành "${newName}"`,
+            time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+        };
+        currentChat.messages.push(sysMsg);
+
+        // Update header and UI
+        const chatNameEl = document.getElementById('chatName');
+        if (chatNameEl) chatNameEl.textContent = currentChat.name;
+        renderConversations(allChats);
+        if (currentChat) renderMessages(currentChat.messages);
+
+        // persist
+        const user = getCurrentUser();
+        if (user) saveUserChats(user, allChats);
+
+        alert('Đã đổi tên nhóm');
+    }
+
+    function onRenameKeypress(e) {
+        if (e.key === 'Enter') { e.preventDefault(); onRename(); }
+    }
+
+    if (renameBtn) renameBtn.addEventListener('click', onRename);
+    if (renameInput) renameInput.addEventListener('keypress', onRenameKeypress);
     
     // Delete group handler
     function onDeleteGroup(e) {

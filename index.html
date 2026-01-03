@@ -216,6 +216,13 @@
 
             <div id="sectionMembers" class="panel-section" style="display:none">
                 <label class="panel-label">Thành viên</label>
+                <div style="margin:8px 0">
+                    <label class="panel-label">Tên nhóm</label>
+                    <div style="display:flex; gap:8px; margin-top:6px;">
+                        <input id="renameGroupInput" type="text" placeholder="Tên nhóm" style="flex:1; padding:8px 10px; border:1px solid #e8e8e0; border-radius:8px">
+                        <button id="renameGroupBtn" class="icon-btn confirm" style="padding:6px 10px; border-radius:8px">Đổi tên</button>
+                    </div>
+                </div>
                 <div id="panelMembersList" style="font-size:13px; color:#444"> <!-- populated by JS --> </div>
                 <div class="members-controls" style="display:flex; gap:8px; margin-top:8px">
                     <input id="addMemberInput" type="text" placeholder="Nhập tên thành viên" style="flex:1; padding:8px 10px; border:1px solid #e8e8e8; border-radius:8px">
