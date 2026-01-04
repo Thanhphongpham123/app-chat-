@@ -163,6 +163,98 @@
         </div>
     </div>
 
+<<<<<<< HEAD
+=======
+    <!-- Info Panel (right side) -->
+    <div id="infoPanel" class="info-panel" style="display:none;">
+        <div class="info-panel-card">
+            <div class="panel-header">
+                <h3>Thông tin cuộc trò chuyện</h3>
+                <button id="closeInfoPanel" class="icon-btn">×</button>
+            </div>
+
+            <div class="panel-tabs">
+                <button id="tabAvatar" class="panel-tab active" title="Ảnh nhóm">
+                    <i class="fas fa-image" style="margin-right:6px"></i>
+                    <span>Ảnh nhóm</span>
+                </button>
+                <button id="tabMembers" class="panel-tab" title="Thành viên">
+                    <i class="fas fa-users" style="margin-right:6px"></i>
+                    <span>Thành viên</span>
+                    <span id="membersCountBadge" class="badge"></span>
+                </button>
+            </div>
+
+            <div id="sectionAvatar" class="panel-section">
+                <label class="panel-label">Ảnh nhóm</label>
+                <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px">
+                    <img id="changeAvatarPreview" src="" alt="preview" style="width:64px; height:64px; border-radius:8px; object-fit:cover; border:1px solid #eee">
+                    <div style="flex:1">
+                        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px">
+                            <button id="addImageBtn" class="icon-btn" title="Thêm ảnh">Thêm ảnh</button>
+                            <input id="changeAvatarFile" type="file" accept="image/*" style="display:none">
+                        </div>
+                        <input id="changeAvatarInput" type="text" placeholder="https://.../avatar.jpg" style="margin-bottom:8px; width:100%">
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:8px; align-items:center;">
+                        <button id="updateAvatarBtn" class="icon-btn confirm" style="padding:6px 10px;">Cập nhật</button>
+                    </div>
+                </div>
+
+                <div style="font-size:13px; color:#444; margin-bottom:8px">Hoặc chọn avatar mặc định</div>
+                <div id="defaultAvatars" class="default-avatar-grid" style="margin-bottom:8px">
+                    <!-- populated by JS -->
+                </div>
+
+                <div style="text-align:right; margin-top:8px">
+                    <button id="confirmChangeAvatar" class="icon-btn confirm">Cập nhật</button>
+                </div>
+            </div>
+
+            <div id="sectionMembers" class="panel-section" style="display:none">
+                <label class="panel-label">Thành viên</label>
+                <div style="margin:8px 0">
+                    <label class="panel-label">Tên nhóm</label>
+                    <div style="display:flex; gap:8px; margin-top:6px;">
+                        <input id="renameGroupInput" type="text" placeholder="Tên nhóm" style="flex:1; padding:8px 10px; border:1px solid #e8e8e0; border-radius:8px">
+                        <button id="renameGroupBtn" class="icon-btn confirm" style="padding:6px 10px; border-radius:8px">Đổi tên</button>
+                    </div>
+                </div>
+                <div id="panelMembersList" style="font-size:13px; color:#444"> <!-- populated by JS --> </div>
+                <div class="members-controls" style="display:flex; gap:8px; margin-top:8px">
+                    <input id="addMemberInput" type="text" placeholder="Nhập tên thành viên" style="flex:1; padding:8px 10px; border:1px solid #e8e8e8; border-radius:8px">
+                    <button id="addMemberBtn" type="button" class="icon-btn confirm" title="Thêm thành viên" style="padding:6px 12px; border-radius:8px">Thêm</button>
+                </div>
+                <div style="font-size:12px; color:#777; margin-top:6px">Chỉ áp dụng cho nhóm. Bạn không thể xoá chính mình và nhóm phải còn ít nhất 2 thành viên.</div>
+                <div style="text-align:right; margin-top:8px">
+                    <button id="deleteGroupBtn" class="icon-btn" style="background:#e74c3c; color:#fff; border-radius:8px; padding:6px 12px">Xóa nhóm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Call Modal -->
+    <div id="callModal" class="call-modal" style="display:none;">
+        <div class="call-overlay"></div>
+        <div class="call-card">
+            <div class="call-type" id="callType">Cuộc gọi thoại</div>
+            <img id="callAvatar" src="" alt="" class="call-avatar">
+            <h3 id="callName" class="call-name"></h3>
+            <div id="callStatus" class="call-status">Đang gọi...</div>
+            <div id="callTimer" class="call-timer" style="display:none;">00:00</div>
+            
+            <div class="call-actions">
+                <button id="answerCallBtn" class="call-btn answer" style="display:none;" title="Trả lời">
+                    <i class="fas fa-phone"></i>
+                </button>
+                <button id="endCallBtn" class="call-btn end" title="Kết thúc">
+                    <i class="fas fa-phone-slash"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+>>>>>>> 1b0eefb (hien thi tin nhan he thong)
     <script src="script.js"></script>
     <script>
         // Example usage: open auth overlay or check current user via console.
