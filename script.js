@@ -1786,7 +1786,7 @@ function attachEvents() {
     if (imageBtn) {
         imageBtn.addEventListener('click', (ev) => {
             ev.preventDefault();
-            if (!currentChat || !currentChat.isGroup) return alert('Chỉ nhóm mới có thể gửi ảnh');
+            if (!currentChat) return alert('Vui lòng mở cuộc trò chuyện');
             if (imageFileInput) imageFileInput.click();
         });
     }
@@ -1801,11 +1801,14 @@ function attachEvents() {
                 processImageToSquare(dataUrl, 800, (processed) => {
                     const imgData = processed || dataUrl;
                     if (!currentChat) return alert('Vui lòng mở cuộc trò chuyện');
-                    if (!currentChat.isGroup) return alert('Chỉ nhóm mới có thể gửi ảnh');
 
                     const now = new Date();
                     const time = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
 
+                    // For group chats we send directly to the group (no confirmation)
+                    // (Private-send-to-all can be added as a separate UI action if needed)
+
+                    // send to current chat (group or individual)
                     const msg = {
                         id: Date.now(),
                         sender: 'you',
@@ -1821,8 +1824,11 @@ function attachEvents() {
                     renderMessages(currentChat.messages);
                     renderConversations(allChats);
 
-                    // fake API: send to room
-                    if (fakeApiEnabled) fakeSendChatRoom(currentChat.name, imgData);
+                    // fake API: send to room or person
+                    if (fakeApiEnabled) {
+                        if (currentChat.isGroup) fakeSendChatRoom(currentChat.name, imgData);
+                        else fakeSendChatPeople(currentChat.name, imgData);
+                    }
 
                     simulateSendResult(msg);
 
