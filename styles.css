@@ -698,6 +698,147 @@ body.dark .system-message div {
     color: #a0a0a0;
 }
 
+/* Call Modal */
+.call-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.call-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(10px);
+}
+
+.call-card {
+    position: relative;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 48px 32px;
+    border-radius: 24px;
+    width: 400px;
+    max-width: 90vw;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    color: white;
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.call-type {
+    font-size: 14px;
+    opacity: 0.9;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.call-avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    margin: 0 auto 20px;
+    display: block;
+    object-fit: cover;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    }
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+}
+
+.call-name {
+    font-size: 28px;
+    font-weight: 600;
+    margin: 0 0 12px;
+    color: white;
+}
+
+.call-status {
+    font-size: 16px;
+    opacity: 0.9;
+    margin-bottom: 8px;
+}
+
+.call-timer {
+    font-size: 20px;
+    font-weight: 500;
+    margin-top: 8px;
+    letter-spacing: 2px;
+}
+
+.call-actions {
+    margin-top: 40px;
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+}
+
+.call-btn {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: white;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.call-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.call-btn.answer {
+    background: #34C759;
+}
+
+.call-btn.answer:hover {
+    background: #30B350;
+}
+
+.call-btn.end {
+    background: #FF3B30;
+}
+
+.call-btn.end:hover {
+    background: #E6352A;
+}
+
 /* collapsible content spacing */
 .members-content { margin-top: 8px; }
 
