@@ -837,17 +837,23 @@ function openChangeAvatarModal() {
     function onAddMember() {
         if (!isGroup) return alert('Chỉ nhóm mới có thể thêm thành viên');
         const cu = getCurrentUser();
-        const name = (addMemberInput && addMemberInput.value || '').trim();
+        let name = (addMemberInput && addMemberInput.value || '').trim();
         if (!name) return alert('Nhập tên thành viên');
         const allUsers = loadUsers().map(u => u.user);
         if (!allUsers.includes(name)) return alert('Thành viên không tồn tại trong hệ thống');
         if ((currentChat.members || []).includes(name)) return alert('Thành viên đã có trong nhóm');
         currentChat.members.push(name);
+        // tin nhan he thong them thanh vien
+        addSystemMessage(currentChat, `${name} đã được thêm vào nhóm`);
+
         // persist
         const user = getCurrentUser();
         if (user) saveUserChats(user, allChats);
         renderMembersPanel();
+        renderMessages(currentChat.messages);
         if (addMemberInput) addMemberInput.value = '';
+        //thong bao them thanh vien thanh cong
+        alert(`Đã thêm ${name} vào nhóm thành công!`);
     }
 
     function onRemoveMember(name) {
@@ -872,29 +878,20 @@ function openChangeAvatarModal() {
         if (currentChat.name.startsWith('Nhóm: ')) {
             currentChat.name = `Nhóm: ${otherMembers.join(', ')}`;
         }
+
+        // tin nhan he thong theo dk
+        if (name === cu) {
+            // tự rời nhóm
+            addSystemMessage(currentChat, `${name} đã rời nhóm`);
+        } else {
+            // bị người khác xóa
+            addSystemMessage(currentChat, `${cu} đã xóa ${name} khỏi nhóm`);
+        }
         
         // Cập nhật lastMessage để thông báo
         currentChat.lastMessage = `${name} đã bị xóa khỏi nhóm`;
-        currentChat.timestamp = 'Bây giờ';
-        
-        // Thêm tin nhắn hệ thống vào lịch sử chat
-        const systemMsg = {
-            id: Date.now(),
-            sender: 'system',
-            text: `${cu} đã xóa ${name} khỏi nhóm`,
-            time: new Date().toLocaleTimeString('vi-VN', {
-                hour: '2-digit',
-                minute: '2-digit'
-            })
-        };
-        currentChat.messages.push(systemMsg);
-        
-        // Cập nhật tên chat header nếu đang xem nhóm này
-        if (currentChat) {
-            const chatNameEl = document.getElementById('chatName');
-            if (chatNameEl) chatNameEl.textContent = currentChat.name;
-        }
-        
+        currentChat.timestamp = Date.now();
+
         // persist
         const user = getCurrentUser();
         if (user) saveUserChats(user, allChats);
@@ -1081,7 +1078,7 @@ function openChangeAvatarModal() {
         }
     }
     if (addMemberBtn) addMemberBtn.addEventListener('click', onAddMember);
-    if (addMemberInput) addMemberInput.addEventListener('keypress', onAddMemberKeypress);
+    if (addMemberInput) addMemberInput.addEventListener('keydown', onAddMemberKeypress);
     function onClickTabAvatar() { selectTab('avatar'); }
     function onClickTabMembers() { selectTab('members'); }
     if (tabAvatar) tabAvatar.addEventListener('click', onClickTabAvatar);
@@ -1098,13 +1095,9 @@ function openChangeAvatarModal() {
         currentChat.name = newName;
         currentChat.lastMessage = `${cu} đã đổi tên nhóm thành "${newName}"`;
         currentChat.timestamp = 'Bây giờ';
-        const sysMsg = {
-            id: Date.now(),
-            sender: 'system',
-            text: `${cu} đã đổi tên nhóm từ "${oldName}" thành "${newName}"`,
-            time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
-        };
-        currentChat.messages.push(sysMsg);
+
+        //tin nhan he thong(rename group)
+        addSystemMessage(currentChat, `Tên nhóm đã đổi thành "${newName}"`);
 
         // Update header and UI
         const chatNameEl = document.getElementById('chatName');
@@ -1198,6 +1191,10 @@ function renderMessages(messages) {
     // Group consecutive messages from same sender
     const groups = [];
     messages.forEach((msg, idx) => {
+        if (msg.type === "system" || msg.sender === "system") {
+            groups.push([msg]);
+            return;
+        }
         if (idx === 0 || messages[idx - 1].sender !== msg.sender) {
             groups.push([msg]);
         } else {
@@ -1211,8 +1208,23 @@ function renderMessages(messages) {
 
     groups.forEach(group => {
         const firstMsg = group[0];
-        let dateObj;
+        // tin nhan hẹ thong render đơn giản rồi return
+        if (firstMsg.type === "system" || firstMsg.sender === "system") {
 
+            const systemDiv = document.createElement('div');
+            systemDiv.className = 'system-message';
+            systemDiv.style.textAlign = 'center';
+            systemDiv.style.padding = '8px';
+            systemDiv.style.color = '#65676b';
+            systemDiv.style.fontSize = '12px';
+            systemDiv.style.fontStyle = 'italic';
+
+            systemDiv.textContent = firstMsg.text;
+            messagesContainer.appendChild(systemDiv);
+            return;
+        }
+
+        let dateObj;
         if (firstMsg.fullTime) {
             dateObj = new Date(firstMsg.fullTime);
         } else {
@@ -1581,6 +1593,21 @@ function sendMessage() {
     }, 800);
 }
 
+// gui tin nhan he thong
+function addSystemMessage(chat, text) {
+    if (!chat || !chat.messages) return;
+    const msg = {
+        id: Date.now(),
+        sender: "system",
+        text: text,
+        time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        type: 'system'
+    };
+    chat.messages.push(msg);
+    chat.lastMessage = text;
+    chat.timestamp = 'Bây giờ';
+}
+
 // gia lap khi gửi tin nhan cần retry
 function simulateSendResult(msg) {
     // giả lập network delay
@@ -1620,22 +1647,31 @@ function createGroup(members, groupName) {
 
     if (uniqueMembers.length < 2) return alert('Nhóm phải có ít nhất 2 thành viên (gồm bạn)');
 
+    // tin nhan he thong dau tien
+    const systemMessage = {
+        id: Date.now(),
+        type: 'system',
+        content: `${currentUser} đã tạo nhóm`,
+        timestamp: new Date().toISOString()
+    };
+
     const newChat = {
         id: Date.now(),
         name: groupName || `Nhóm: ${uniqueMembers.filter(m => m !== currentUser).join(', ')}`,
         avatar: 'https://i.pravatar.cc/150?img=20',
         lastMessage: 'Nhóm mới',
-        timestamp: 'Mới',
+        timestamp: Date.now(),
         online: false,
         unread: 0,
         isGroup: true,
         members: uniqueMembers,
-        messages: []
+        messages: [systemMessage]
     };
 
     // add to top of chats and save
     allChats.unshift(newChat);
     saveUserChats(currentUser, allChats);
+    addSystemMessage(newChat, "Nhóm đã được tạo");
     renderConversations(allChats);
     openChat(newChat);
 }
