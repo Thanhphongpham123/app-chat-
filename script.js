@@ -1594,3 +1594,145 @@ const api = {
 window.api = api;
 
 console.log('API helpers loaded. Use window.api.connect(url) to connect.');
+
+// ========== VOICE/VIDEO CALL FEATURE ==========
+let callTimer = null;
+let callDuration = 0;
+let currentCallType = null;
+
+function initCallButtons() {
+    const voiceCallBtn = document.getElementById('voiceCallBtn');
+    const videoCallBtn = document.getElementById('videoCallBtn');
+    
+    if (voiceCallBtn) {
+        voiceCallBtn.addEventListener('click', () => startCall('voice'));
+    }
+    
+    if (videoCallBtn) {
+        videoCallBtn.addEventListener('click', () => startCall('video'));
+    }
+    
+    const endCallBtn = document.getElementById('endCallBtn');
+    if (endCallBtn) {
+        endCallBtn.addEventListener('click', endCall);
+    }
+}
+
+function startCall(type) {
+    if (!currentChat) {
+        alert('Vui lòng chọn một cuộc trò chuyện để gọi');
+        return;
+    }
+    
+    currentCallType = type;
+    const callModal = document.getElementById('callModal');
+    const callType = document.getElementById('callType');
+    const callAvatar = document.getElementById('callAvatar');
+    const callName = document.getElementById('callName');
+    const callStatus = document.getElementById('callStatus');
+    const callTimerEl = document.getElementById('callTimer');
+    
+    // Set call info
+    callType.textContent = type === 'voice' ? 'Cuộc gọi thoại' : 'Cuộc gọi video';
+    callAvatar.src = currentChat.avatar;
+    callName.textContent = currentChat.name;
+    callStatus.textContent = 'Đang gọi...';
+    callStatus.style.display = 'block';
+    callTimerEl.style.display = 'none';
+    
+    // Show modal
+    callModal.style.display = 'flex';
+    
+    // Play ringtone sound (simulated)
+    console.log('📞 Calling:', currentChat.name, 'Type:', type);
+    
+    // Fake API call
+    if (fakeApiEnabled) {
+        console.log('📤 FAKE API: START_CALL', { to: currentChat.name, type });
+    }
+    
+    // Simulate answer after 2-3 seconds
+    setTimeout(() => {
+        answerCall();
+    }, 2500);
+}
+
+function answerCall() {
+    const callStatus = document.getElementById('callStatus');
+    const callTimerEl = document.getElementById('callTimer');
+    
+    callStatus.textContent = 'Đã kết nối';
+    callStatus.style.display = 'none';
+    callTimerEl.style.display = 'block';
+    
+    console.log('📞 Call answered');
+    
+    // Start timer
+    callDuration = 0;
+    updateCallTimer();
+    callTimer = setInterval(() => {
+        callDuration++;
+        updateCallTimer();
+    }, 1000);
+}
+
+function updateCallTimer() {
+    const callTimerEl = document.getElementById('callTimer');
+    const minutes = Math.floor(callDuration / 60);
+    const seconds = callDuration % 60;
+    callTimerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function endCall() {
+    const callModal = document.getElementById('callModal');
+    callModal.style.display = 'none';
+    
+    // Stop timer
+    if (callTimer) {
+        clearInterval(callTimer);
+        callTimer = null;
+    }
+    
+    console.log('📞 Call ended. Duration:', callDuration, 'seconds');
+    
+    // Fake API call
+    if (fakeApiEnabled) {
+        console.log('📤 FAKE API: END_CALL', { duration: callDuration, type: currentCallType });
+    }
+    
+    // Add system message to chat
+    if (currentChat) {
+        const callMsg = {
+            id: Date.now(),
+            sender: 'system',
+            text: `Cuộc gọi ${currentCallType === 'voice' ? 'thoại' : 'video'} - Thời gian: ${Math.floor(callDuration / 60)}:${String(callDuration % 60).padStart(2, '0')}`,
+            time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+        };
+        currentChat.messages.push(callMsg);
+        
+        // Update last message
+        currentChat.lastMessage = `Cuộc gọi ${currentCallType === 'voice' ? 'thoại' : 'video'}`;
+        currentChat.timestamp = 'Bây giờ';
+        
+        // Save and update UI
+        const cu = getCurrentUser();
+        if (cu) saveUserChats(cu, allChats);
+        renderMessages(currentChat.messages);
+        renderConversations(allChats);
+    }
+    
+    callDuration = 0;
+    currentCallType = null;
+}
+
+// Initialize call buttons when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    initCallButtons();
+});
+
+// Also initialize in case DOM is already loaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCallButtons);
+} else {
+    initCallButtons();
+}
