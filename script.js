@@ -785,24 +785,40 @@ function openChangeAvatarModal() {
             const label = document.createElement('div');
             label.className = 'members-name';
             label.textContent = name;
+            // show admin badge
+            if (currentChat && currentChat.admin === name) {
+                const b = document.createElement('span');
+                b.className = 'members-admin-badge';
+                b.style.marginLeft = '8px';
+                b.style.fontSize = '12px';
+                b.style.color = '#2c7';
+                b.textContent = 'Quản trị';
+                label.appendChild(b);
+            }
             left.appendChild(avatar);
             left.appendChild(label);
 
             const removeBtn = document.createElement('button');
             removeBtn.className = 'members-remove';
             removeBtn.type = 'button'; // Thêm type button để tránh submit form
-            removeBtn.textContent = 'Xóa';
-            
-            // prevent removing yourself
+            // Button text: allow current user to "Rời" (leave), allow removing others
             const isCurrentUser = (name === cu);
             console.log('Creating remove button for:', name, 'Current user:', cu, 'Is same?', isCurrentUser);
-            
             if (isCurrentUser) {
-                removeBtn.disabled = true;
-                removeBtn.title = 'Không thể xóa chính bạn';
-            } else {
                 removeBtn.disabled = false;
-                removeBtn.title = `Xóa ${name} khỏi nhóm`;
+                removeBtn.textContent = 'Rời';
+                removeBtn.title = 'Rời nhóm';
+            } else {
+                // Only admin can remove other members
+                if (cu && currentChat && currentChat.admin === cu) {
+                    removeBtn.disabled = false;
+                    removeBtn.textContent = 'Xóa';
+                    removeBtn.title = `Xóa ${name} khỏi nhóm`;
+                } else {
+                    removeBtn.disabled = true;
+                    removeBtn.textContent = 'Xóa';
+                    removeBtn.title = 'Chỉ quản trị viên mới có thể xóa thành viên';
+                }
             }
             
             removeBtn.onclick = function(e) {
@@ -866,43 +882,103 @@ function openChangeAvatarModal() {
         const cu = getCurrentUser();
         console.log('Current user:', cu);
         
-        if (name === cu) return alert('Bạn không thể xóa chính mình khỏi nhóm');
-        if (!window.confirm(`Xóa thành viên "${name}" khỏi nhóm?`)) return;
-        if ((currentChat.members || []).length <= 2) return alert('Nhóm phải có ít nhất 2 thành viên');
-        
-        // Xóa thành viên
+        // prevent non-admin removing others
+        if (name !== cu && currentChat.admin !== cu) return alert('Chỉ quản trị viên mới có thể xóa thành viên khác');
+
+        // allow leaving (name === cu) or removing others
+        const leavingSelf = name === cu;
+        if (!window.confirm(leavingSelf ? `Bạn có chắc muốn rời nhóm "${currentChat.name}"?` : `Xóa thành viên "${name}" khỏi nhóm?`)) return;
+
+        // perform removal
         currentChat.members = (currentChat.members || []).filter(n => n !== name);
-        
-        // Cập nhật tên nhóm nếu tên nhóm được tạo tự động
-        const otherMembers = currentChat.members.filter(m => m !== cu);
-        if (currentChat.name.startsWith('Nhóm: ')) {
-            currentChat.name = `Nhóm: ${otherMembers.join(', ')}`;
+
+        // If the member leaving was the admin, transfer admin to another member (if any)
+        if (currentChat.admin === name) {
+            if ((currentChat.members || []).length > 0) {
+                // pick first member as new admin
+                currentChat.admin = currentChat.members[0];
+                const sysMsg = {
+                    id: Date.now(),
+                    sender: 'system',
+                    text: `Quyền quản trị đã được chuyển cho ${currentChat.admin}`,
+                    time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                };
+                currentChat.messages.push(sysMsg);
+                currentChat.lastMessage = sysMsg.text;
+                currentChat.timestamp = 'Bây giờ';
+            } else {
+                // no members left — delete group
+                const cuUser = getCurrentUser();
+                allChats = allChats.filter(c => c.id !== currentChat.id);
+                if (cuUser) saveUserChats(cuUser, allChats);
+                // close panel and chat
+                alert('Nhóm đã bị xóa vì không còn thành viên');
+                const panel = document.getElementById('infoPanel');
+                if (panel) panel.style.display = 'none';
+                currentChat = null;
+                chatWindow.style.display = 'none';
+                emptyChat.style.display = 'flex';
+                renderConversations(allChats);
+                return;
+            }
+        } else {
+            // update last message for removal by others
+            currentChat.lastMessage = `${name} đã bị xóa khỏi nhóm`;
+            currentChat.timestamp = 'Bây giờ';
+            const systemMsg = {
+                id: Date.now(),
+                sender: 'system',
+                text: `${getCurrentUser()} đã xóa ${name} khỏi nhóm`,
+                time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+            };
+            currentChat.messages.push(systemMsg);
         }
 
-        // tin nhan he thong theo dk
-        if (name === cu) {
-            // tự rời nhóm
-            addSystemMessage(currentChat, `${name} đã rời nhóm`);
-        } else {
-            // bị người khác xóa
-            addSystemMessage(currentChat, `${cu} đã xóa ${name} khỏi nhóm`);
+        // If leaving self and group still exists, notify in system message
+        if (leavingSelf && currentChat) {
+            const sysMsg = {
+                id: Date.now(),
+                sender: 'system',
+                text: `${name} đã rời nhóm`,
+                time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+            };
+            currentChat.messages.push(sysMsg);
+            currentChat.lastMessage = sysMsg.text;
+            currentChat.timestamp = 'Bây giờ';
         }
-        
-        // Cập nhật lastMessage để thông báo
-        currentChat.lastMessage = `${name} đã bị xóa khỏi nhóm`;
-        currentChat.timestamp = Date.now();
+
+        // If after removal group has less than 2 members, delete it
+        if ((currentChat.members || []).length < 2) {
+            const cuUser = getCurrentUser();
+            allChats = allChats.filter(c => c.id !== currentChat.id);
+            if (cuUser) saveUserChats(cuUser, allChats);
+            alert('Nhóm đã được xóa vì không còn đủ thành viên');
+            const panel = document.getElementById('infoPanel');
+            if (panel) panel.style.display = 'none';
+            currentChat = null;
+            chatWindow.style.display = 'none';
+            emptyChat.style.display = 'flex';
+            renderConversations(allChats);
+            return;
+        }
+
+        // Update chat header if viewing
+        if (currentChat) {
+            const chatNameEl = document.getElementById('chatName');
+            if (chatNameEl) chatNameEl.textContent = currentChat.name;
+        }
 
         // persist
         const user = getCurrentUser();
         if (user) saveUserChats(user, allChats);
-        
-        // Cập nhật UI
+
+        // Update UI
         renderMembersPanel();
         renderConversations(allChats);
         if (currentChat) renderMessages(currentChat.messages);
-        
-        // Hiển thị thông báo thành công
-        alert(`Đã xóa ${name} khỏi nhóm`);
+
+        // Notify
+        alert(leavingSelf ? 'Bạn đã rời nhóm' : `Đã xóa ${name} khỏi nhóm`);
     }
     panel.style.display = 'block';
     function selectTab(tab) {
@@ -1664,6 +1740,7 @@ function createGroup(members, groupName) {
         online: false,
         unread: 0,
         isGroup: true,
+        admin: currentUser,
         members: uniqueMembers,
         messages: [systemMessage]
     };
