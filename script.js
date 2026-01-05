@@ -853,17 +853,23 @@ function openChangeAvatarModal() {
     function onAddMember() {
         if (!isGroup) return alert('Chỉ nhóm mới có thể thêm thành viên');
         const cu = getCurrentUser();
-        const name = (addMemberInput && addMemberInput.value || '').trim();
+        let name = (addMemberInput && addMemberInput.value || '').trim();
         if (!name) return alert('Nhập tên thành viên');
         const allUsers = loadUsers().map(u => u.user);
         if (!allUsers.includes(name)) return alert('Thành viên không tồn tại trong hệ thống');
         if ((currentChat.members || []).includes(name)) return alert('Thành viên đã có trong nhóm');
         currentChat.members.push(name);
+        // tin nhan he thong them thanh vien
+        addSystemMessage(currentChat, `${name} đã được thêm vào nhóm`);
+
         // persist
         const user = getCurrentUser();
         if (user) saveUserChats(user, allChats);
         renderMembersPanel();
+        renderMessages(currentChat.messages);
         if (addMemberInput) addMemberInput.value = '';
+        //thong bao them thanh vien thanh cong
+        alert(`Đã thêm ${name} vào nhóm thành công!`);
     }
 
     function onRemoveMember(name) {
@@ -1148,7 +1154,7 @@ function openChangeAvatarModal() {
         }
     }
     if (addMemberBtn) addMemberBtn.addEventListener('click', onAddMember);
-    if (addMemberInput) addMemberInput.addEventListener('keypress', onAddMemberKeypress);
+    if (addMemberInput) addMemberInput.addEventListener('keydown', onAddMemberKeypress);
     function onClickTabAvatar() { selectTab('avatar'); }
     function onClickTabMembers() { selectTab('members'); }
     if (tabAvatar) tabAvatar.addEventListener('click', onClickTabAvatar);
@@ -1165,13 +1171,9 @@ function openChangeAvatarModal() {
         currentChat.name = newName;
         currentChat.lastMessage = `${cu} đã đổi tên nhóm thành "${newName}"`;
         currentChat.timestamp = 'Bây giờ';
-        const sysMsg = {
-            id: Date.now(),
-            sender: 'system',
-            text: `${cu} đã đổi tên nhóm từ "${oldName}" thành "${newName}"`,
-            time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
-        };
-        currentChat.messages.push(sysMsg);
+
+        //tin nhan he thong(rename group)
+        addSystemMessage(currentChat, `Tên nhóm đã đổi thành "${newName}"`);
 
         // Update header and UI
         const chatNameEl = document.getElementById('chatName');
@@ -1265,6 +1267,10 @@ function renderMessages(messages) {
     // Group consecutive messages from same sender
     const groups = [];
     messages.forEach((msg, idx) => {
+        if (msg.type === "system" || msg.sender === "system") {
+            groups.push([msg]);
+            return;
+        }
         if (idx === 0 || messages[idx - 1].sender !== msg.sender) {
             groups.push([msg]);
         } else {
@@ -1278,8 +1284,23 @@ function renderMessages(messages) {
 
     groups.forEach(group => {
         const firstMsg = group[0];
-        let dateObj;
+        // tin nhan hẹ thong render đơn giản rồi return
+        if (firstMsg.type === "system" || firstMsg.sender === "system") {
 
+            const systemDiv = document.createElement('div');
+            systemDiv.className = 'system-message';
+            systemDiv.style.textAlign = 'center';
+            systemDiv.style.padding = '8px';
+            systemDiv.style.color = '#65676b';
+            systemDiv.style.fontSize = '12px';
+            systemDiv.style.fontStyle = 'italic';
+
+            systemDiv.textContent = firstMsg.text;
+            messagesContainer.appendChild(systemDiv);
+            return;
+        }
+
+        let dateObj;
         if (firstMsg.fullTime) {
             dateObj = new Date(firstMsg.fullTime);
         } else {
@@ -1648,6 +1669,21 @@ function sendMessage() {
     }, 800);
 }
 
+// gui tin nhan he thong
+function addSystemMessage(chat, text) {
+    if (!chat || !chat.messages) return;
+    const msg = {
+        id: Date.now(),
+        sender: "system",
+        text: text,
+        time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        type: 'system'
+    };
+    chat.messages.push(msg);
+    chat.lastMessage = text;
+    chat.timestamp = 'Bây giờ';
+}
+
 // gia lap khi gửi tin nhan cần retry
 function simulateSendResult(msg) {
     // giả lập network delay
@@ -1687,23 +1723,32 @@ function createGroup(members, groupName) {
 
     if (uniqueMembers.length < 2) return alert('Nhóm phải có ít nhất 2 thành viên (gồm bạn)');
 
+    // tin nhan he thong dau tien
+    const systemMessage = {
+        id: Date.now(),
+        type: 'system',
+        content: `${currentUser} đã tạo nhóm`,
+        timestamp: new Date().toISOString()
+    };
+
     const newChat = {
         id: Date.now(),
         name: groupName || `Nhóm: ${uniqueMembers.filter(m => m !== currentUser).join(', ')}`,
         avatar: 'https://i.pravatar.cc/150?img=20',
         lastMessage: 'Nhóm mới',
-        timestamp: 'Mới',
+        timestamp: Date.now(),
         online: false,
         unread: 0,
         isGroup: true,
         admin: currentUser,
         members: uniqueMembers,
-        messages: []
+        messages: [systemMessage]
     };
 
     // add to top of chats and save
     allChats.unshift(newChat);
     saveUserChats(currentUser, allChats);
+    addSystemMessage(newChat, "Nhóm đã được tạo");
     renderConversations(allChats);
     openChat(newChat);
 }
@@ -2051,3 +2096,145 @@ const api = {
 window.api = api;
 
 console.log('API helpers loaded. Use window.api.connect(url) to connect.');
+
+// ========== VOICE/VIDEO CALL FEATURE ==========
+let callTimer = null;
+let callDuration = 0;
+let currentCallType = null;
+
+function initCallButtons() {
+    const voiceCallBtn = document.getElementById('voiceCallBtn');
+    const videoCallBtn = document.getElementById('videoCallBtn');
+    
+    if (voiceCallBtn) {
+        voiceCallBtn.addEventListener('click', () => startCall('voice'));
+    }
+    
+    if (videoCallBtn) {
+        videoCallBtn.addEventListener('click', () => startCall('video'));
+    }
+    
+    const endCallBtn = document.getElementById('endCallBtn');
+    if (endCallBtn) {
+        endCallBtn.addEventListener('click', endCall);
+    }
+}
+
+function startCall(type) {
+    if (!currentChat) {
+        alert('Vui lòng chọn một cuộc trò chuyện để gọi');
+        return;
+    }
+    
+    currentCallType = type;
+    const callModal = document.getElementById('callModal');
+    const callType = document.getElementById('callType');
+    const callAvatar = document.getElementById('callAvatar');
+    const callName = document.getElementById('callName');
+    const callStatus = document.getElementById('callStatus');
+    const callTimerEl = document.getElementById('callTimer');
+    
+    // Set call info
+    callType.textContent = type === 'voice' ? 'Cuộc gọi thoại' : 'Cuộc gọi video';
+    callAvatar.src = currentChat.avatar;
+    callName.textContent = currentChat.name;
+    callStatus.textContent = 'Đang gọi...';
+    callStatus.style.display = 'block';
+    callTimerEl.style.display = 'none';
+    
+    // Show modal
+    callModal.style.display = 'flex';
+    
+    // Play ringtone sound (simulated)
+    console.log('📞 Calling:', currentChat.name, 'Type:', type);
+    
+    // Fake API call
+    if (fakeApiEnabled) {
+        console.log('📤 FAKE API: START_CALL', { to: currentChat.name, type });
+    }
+    
+    // Simulate answer after 2-3 seconds
+    setTimeout(() => {
+        answerCall();
+    }, 2500);
+}
+
+function answerCall() {
+    const callStatus = document.getElementById('callStatus');
+    const callTimerEl = document.getElementById('callTimer');
+    
+    callStatus.textContent = 'Đã kết nối';
+    callStatus.style.display = 'none';
+    callTimerEl.style.display = 'block';
+    
+    console.log('📞 Call answered');
+    
+    // Start timer
+    callDuration = 0;
+    updateCallTimer();
+    callTimer = setInterval(() => {
+        callDuration++;
+        updateCallTimer();
+    }, 1000);
+}
+
+function updateCallTimer() {
+    const callTimerEl = document.getElementById('callTimer');
+    const minutes = Math.floor(callDuration / 60);
+    const seconds = callDuration % 60;
+    callTimerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function endCall() {
+    const callModal = document.getElementById('callModal');
+    callModal.style.display = 'none';
+    
+    // Stop timer
+    if (callTimer) {
+        clearInterval(callTimer);
+        callTimer = null;
+    }
+    
+    console.log('📞 Call ended. Duration:', callDuration, 'seconds');
+    
+    // Fake API call
+    if (fakeApiEnabled) {
+        console.log('📤 FAKE API: END_CALL', { duration: callDuration, type: currentCallType });
+    }
+    
+    // Add system message to chat
+    if (currentChat) {
+        const callMsg = {
+            id: Date.now(),
+            sender: 'system',
+            text: `Cuộc gọi ${currentCallType === 'voice' ? 'thoại' : 'video'} - Thời gian: ${Math.floor(callDuration / 60)}:${String(callDuration % 60).padStart(2, '0')}`,
+            time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+        };
+        currentChat.messages.push(callMsg);
+        
+        // Update last message
+        currentChat.lastMessage = `Cuộc gọi ${currentCallType === 'voice' ? 'thoại' : 'video'}`;
+        currentChat.timestamp = 'Bây giờ';
+        
+        // Save and update UI
+        const cu = getCurrentUser();
+        if (cu) saveUserChats(cu, allChats);
+        renderMessages(currentChat.messages);
+        renderConversations(allChats);
+    }
+    
+    callDuration = 0;
+    currentCallType = null;
+}
+
+// Initialize call buttons when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    initCallButtons();
+});
+
+// Also initialize in case DOM is already loaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCallButtons);
+} else {
+    initCallButtons();
+}
