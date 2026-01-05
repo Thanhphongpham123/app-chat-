@@ -1336,7 +1336,6 @@ function renderMessages(messages) {
             sep.className = "day-separator";
             sep.innerHTML = `<span>${formatChatDateLabel(dateObj)}</span>`;
             messagesContainer.appendChild(sep);
-            return;
         }
 
         // cung hom nay neu cach xa thoi gian thi them gio + hom nay
