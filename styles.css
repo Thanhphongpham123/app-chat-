@@ -174,11 +174,6 @@ body {
     transform: translateY(-2px);
 }
 
-.conversation-time {
-    font-size: 12px;
-    color: #65676b;
-}
-
 .conversation-message {
     font-size: 13px;
     color: #65676b;
@@ -307,13 +302,17 @@ body {
 
 .message-group {
     display: flex;
-    gap: 8px;
+    flex-direction: column;
+    gap: 6px;
     margin-bottom: 0;
-    align-items: flex-end;
 }
 
 .message-group.sent {
-    justify-content: flex-end;
+    align-items: flex-end;
+}
+
+.message-group.received {
+    align-items: flex-start;
 }
 
 .message-bubble {
@@ -321,8 +320,13 @@ body {
     padding: 8px 12px;
     border-radius: 18px;
     word-wrap: break-word;
+    white-space: normal;
     font-size: 14px;
     line-height: 1.4;
+}
+
+.message-bubble:hover {
+    filter: brightness(0.97);
 }
 
 .message-group.received .message-bubble {
@@ -331,18 +335,17 @@ body {
     border-bottom-left-radius: 4px;
 }
 
-.message-group.sent .message-bubble {
+.message-group.sent .message-bubble:last-child {
     background: #0a66c2;
     color: #fff;
-    border-bottom-right-radius: 4px;
+    border-bottom-right-radius: 6px;
 }
 
 .message-time {
     font-size: 12px;
     color: #65676b;
     margin-top: 2px;
-    padding: 0 8px;
-    text-align: center;
+    margin-right: -5px;
 }
 
 .day-separator{
@@ -361,11 +364,11 @@ body {
 }
 
 .message-group.sent .message-time {
-    text-align: right;
+    align-self: flex-end;
 }
 
 .message-group.received .message-time {
-    text-align: left;
+    align-self: flex-start;
 }
 
 /* Message Input Area */
@@ -433,7 +436,7 @@ body {
         border-right: none;
         border-bottom: 1px solid #e5e5e5;
     }
-
+}
 
 /* Modal styles for create group */
 .modal {
@@ -522,7 +525,7 @@ body {
     .chat-area {
         flex: 1;
     }
-}
+
 
 <<<<<<< HEAD
 =======
@@ -715,10 +718,10 @@ body.dark .system-message div {
 }
 
 .message-status {
-    font-size: 10px;
-    color: gray;
-    text-align: right;
+    font-size: 12px;
+    color: #777;
     margin-top: 2px;
+    margin-right: -55px;
 }
 
 .message-group.sent {
@@ -736,14 +739,6 @@ body.dark .system-message div {
     font-size: 14px;
     line-height: 1.4;
     position: relative;
-}
-
-.message-status {
-    position: absolute;
-    bottom: -15px;
-    right: 50px;
-    font-size: 10px;
-    color: gray;
 }
 
 .message-actions-menu div {
