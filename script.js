@@ -42,6 +42,8 @@ let currentChat = null;
 let allChats = [];
 const inactiveTimers = {};
 let typingTimer = null;
+let mentionStartIndex = -1;
+let mentionSearch = "";
 
 // DOM Elements
 const conversationsList = document.getElementById('conversationsList');
@@ -54,6 +56,11 @@ const searchInput = document.getElementById('searchInput');
 const chatName = document.getElementById('chatName');
 const chatAvatar = document.getElementById('chatAvatar');
 const chatStatus = document.getElementById('chatStatus');
+
+// mention box
+let mentionBox = document.createElement("div");
+mentionBox.className = "mention-box";
+document.body.appendChild(mentionBox);
 
 // Initialize
 function init() {
@@ -1286,7 +1293,6 @@ function renderMessages(messages) {
         const firstMsg = group[0];
         // tin nhan hẹ thong render đơn giản rồi return
         if (firstMsg.type === "system" || firstMsg.sender === "system") {
-
             const systemDiv = document.createElement('div');
             systemDiv.className = 'system-message';
             systemDiv.style.textAlign = 'center';
@@ -1378,6 +1384,19 @@ function renderMessages(messages) {
         const msgDiv = document.createElement('div');
         msgDiv.className = `message-group ${group[0].sender === 'you' ? 'sent' : 'received'}`;
 
+        if (firstMsg.isGroup) {
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'group-sender-name';
+            nameDiv.style.fontSize = '12px';
+            nameDiv.style.color = '#0a66c2';
+            nameDiv.style.margin = '2px 4px';
+
+            nameDiv.textContent = firstMsg.sender === 'you'
+                ? 'Bạn'
+                : firstMsg.sender;
+            msgDiv.appendChild(nameDiv);
+        }
+
         group.forEach(msg => {
             // wrapper để hover icon
             const bubbleWrapper = document.createElement('div');
@@ -1402,7 +1421,7 @@ function renderMessages(messages) {
                     bubble.appendChild(caption);
                 }
             } else {
-                bubble.textContent = msg.text || '';
+                bubble.innerHTML = highlightMentions(msg.text || '');
             }
 
             // icon mneu 3 chấm
@@ -1501,15 +1520,20 @@ function renderMessages(messages) {
 
         messagesContainer.appendChild(msgDiv);
     });
-
     // Scroll to bottom
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+//highlight mention
+function highlightMentions(text){
+    if(!text) return "";
+    return text.replace(/@[\p{L}\p{M}0-9_ ]+/gu, match =>
+        `<span class="mention">${match.trim()}</span>`);
 }
 
 function retryMessage(msg) {
     msg.status = 'sending';
     renderMessages(currentChat.messages);
-
     simulateSendResult(msg);
 }
 
@@ -1573,9 +1597,9 @@ function handleIncomingMessage(data) {
 
 // Send message
 function sendMessage() {
+    if (!currentChat) return;
     const text = messageInput.value.trim();
-    if (!text || !currentChat) return;
-
+    if (!text) return;
     const now = new Date();
     const time = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
 
@@ -1583,11 +1607,19 @@ function sendMessage() {
         id: Date.now(),
         sender: 'you',
         text: text,
-        time: time,
-        date: new Date().toISOString().split("T")[0],
+        time: now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        date: now.toISOString().split("T")[0],
         fullTime: new Date().toISOString(),
-        status: 'sending' // trạng thái mới
+        status: 'sending', // trạng thái mới
+        isGroup: currentChat.type === 'group'
     };
+
+    //xu ly tag trong group
+    if (currentChat.type === 'group') {
+        if (text.includes('@all')) {
+            msg.tagAll = true;
+        }
+    }
 
     currentChat.messages.push(msg);
 
@@ -1598,6 +1630,10 @@ function sendMessage() {
     renderConversations(allChats);
 
     messageInput.value = '';
+    mentionSearch = "";
+    if (mentionBox) {
+        mentionBox.style.display = "none";
+    }
 
     // Gọi fake API SEND_CHAT
     if (fakeApiEnabled) {
@@ -1835,7 +1871,22 @@ function attachEvents() {
     });
     let typingTimeout = null;
     messageInput.addEventListener('input', () => {
-        if (!currentChat) return;
+        if (!currentChat || !currentChat.isGroup) return;
+
+        const value = messageInput.value;
+        const pos = messageInput.selectionStart;
+
+        // Nếu gõ @
+        if (value[pos - 1] === "@") {
+            mentionStartIndex = pos - 1;
+            showMentionList();
+            return;
+        }
+
+        // nếu xóa tới trước vị trí @
+        if (mentionStartIndex !== -1 && pos <= mentionStartIndex) {
+            closeMention();
+        }
 
         window.api.sendRaw({
             action: 'onchat',
@@ -1953,13 +2004,65 @@ function attachEvents() {
             ev.target.value = '';
         });
     }
-
-// Click ra ngoài thì đóng popup (giống Messenger)
+    // Click ra ngoài thì đóng popup (giống Messenger)
     document.addEventListener('click', () => {
         emojiPopup.style.display = 'none';
     });
-
 }
+
+//hien thi ds member
+function showMentionList() {
+    if (!currentChat || !currentChat.members) return;
+
+    mentionBox.innerHTML = "";
+    const allItem = document.createElement("div");
+    allItem.className = "mention-item";
+    allItem.style.cssText = `
+        padding:6px 10px;
+        cursor:pointer;
+    `;
+    allItem.textContent = "mọi người (@all)";
+    allItem.onclick = () => selectMention("all");
+    mentionBox.appendChild(allItem);
+
+    //ds member
+    currentChat.members.forEach(m => {
+        const item = document.createElement("div");
+        item.className = "mention-item";
+        item.style.cssText = `
+            padding:6px 10px;
+            cursor:pointer;
+        `;
+        item.textContent = m;
+        item.onclick = () => selectMention(m);
+        mentionBox.appendChild(item);
+    });
+
+    const rect = messageInput.getBoundingClientRect();
+    mentionBox.style.left = rect.left + "px";
+    mentionBox.style.top = (rect.top - 200) + "px";
+    mentionBox.style.display = "block";
+}
+
+//chon menber sau khi nhan chon
+function selectMention(name) {
+    if (name === "all") {
+        name = "mọi người";
+    }
+    const value = messageInput.value;
+    messageInput.value =
+        value.substring(0, mentionStartIndex) +
+        "@" + name + " " +
+        value.substring(messageInput.selectionStart);
+    closeMention();
+}
+
+//dong menu popup
+function closeMention() {
+    mentionStartIndex = -1;
+    mentionBox.style.display = "none";
+}
+
 
 // Start
 init();
