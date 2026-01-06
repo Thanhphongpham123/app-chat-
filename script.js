@@ -76,6 +76,18 @@ function init() {
     attachEvents();
     wireAuthUI();
     updateUserUI();
+    // Group notification toggle UI
+    try {
+        const groupToggle = document.getElementById('groupNotifToggle');
+        if (groupToggle) {
+            groupToggle.checked = isGroupNotificationEnabled();
+            groupToggle.addEventListener('change', () => {
+                setGroupNotificationEnabled(groupToggle.checked);
+            });
+        }
+    } catch (e) {
+        console.warn('groupNotif toggle init error', e);
+    }
     // if not logged in, show auth overlay
     if (!currentUser) showAuthOverlay(true);
 }
@@ -111,6 +123,18 @@ const AUTH_USERS_KEY = 'appChat_users';
 const AUTH_CURRENT_KEY = 'appChat_currentUser';
 const AUTH_RELOGIN_CODE_KEY = 'appChat_reloginCode';
 const CHATS_KEY_PREFIX = 'appChat_chats_';
+const GROUP_NOTIF_KEY = 'appChat_groupNotifications';
+
+function isGroupNotificationEnabled() {
+    const v = localStorage.getItem(GROUP_NOTIF_KEY);
+    // default: enabled
+    if (v === null) return true;
+    return v === '1';
+}
+
+function setGroupNotificationEnabled(enabled) {
+    localStorage.setItem(GROUP_NOTIF_KEY, enabled ? '1' : '0');
+}
 
 // ===== FAKE API LAYER =====
 let fakeApiEnabled = true; // Bật fake API
@@ -621,7 +645,10 @@ setInterval(() => {
     randomChat.timestamp = Date.now();
 
     if (!currentChat || currentChat.id !== randomChat.id) {
-        randomChat.unread = (randomChat.unread || 0) + 1;
+        // Nếu là cuộc trò chuyện nhóm và người dùng đã tắt thông báo nhóm → không tăng unread
+        if (!(randomChat.isGroup && !isGroupNotificationEnabled())) {
+            randomChat.unread = (randomChat.unread || 0) + 1;
+        }
     } else {
         renderMessages(randomChat.messages);
     }
