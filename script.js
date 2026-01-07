@@ -1472,16 +1472,45 @@ function renderMessages(messages) {
                 menu.style.display = 'none';
             });
             menu.querySelector('.recall-msg').addEventListener('click', () => {
-                // Thu hồi: xóa nội dung tin nhắn (ảnh hoặc text) và thông báo "Tin nhắn đã thu hồi"
+                // Thu hồi: đổi nội dung tin nhắn thành thông báo thu hồi
                 msg.image = undefined;
                 msg.text = 'Tin nhắn đã thu hồi';
                 renderMessages(messages);
+                // lưu lại
+                const cu = getCurrentUser();
+                if (cu) saveUserChats(cu, allChats);
+                menu.style.display = 'none';
             });
             menu.querySelector('.delete-msg').addEventListener('click', () => {
                 const index = messages.indexOf(msg);
                 if (index > -1) messages.splice(index, 1);
                 renderMessages(messages);
+                const cu = getCurrentUser();
+                if (cu) saveUserChats(cu, allChats);
+                menu.style.display = 'none';
             });
+
+            // Long-press (hold) to show actions menu — supports touch and mouse
+            let pressTimer = null;
+            const LONG_PRESS_MS = 600;
+            const startPress = (e) => {
+                // prevent context menu on long press
+                if (e && e.type === 'touchstart') e.preventDefault();
+                if (pressTimer) clearTimeout(pressTimer);
+                pressTimer = setTimeout(() => {
+                    menu.style.display = 'block';
+                }, LONG_PRESS_MS);
+            };
+            const cancelPress = () => {
+                if (pressTimer) clearTimeout(pressTimer);
+                pressTimer = null;
+            };
+            bubbleWrapper.addEventListener('touchstart', startPress, { passive: false });
+            bubbleWrapper.addEventListener('mousedown', startPress);
+            bubbleWrapper.addEventListener('touchend', cancelPress);
+            bubbleWrapper.addEventListener('touchcancel', cancelPress);
+            bubbleWrapper.addEventListener('mouseup', cancelPress);
+            bubbleWrapper.addEventListener('mouseleave', cancelPress);
 
             bubbleWrapper.addEventListener('mouseenter', () => {
                 icon.style.display = 'block'; // hiện icon
