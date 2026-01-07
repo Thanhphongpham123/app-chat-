@@ -1183,12 +1183,14 @@ function sendMessage() {
 
     const now = new Date();
     const time = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const date = now.toLocaleDateString('vi-VN');
 
     const msg = {
         id: Date.now(),
         sender: 'you',
         text: text,
         time: time,
+        date: date,
         status: 'sending' // trạng thái mới
     };
 
@@ -1709,12 +1711,14 @@ function endCall() {
         const minutes = Math.floor(finalDuration / 60);
         const seconds = finalDuration % 60;
         const timeStr = `${minutes}:${String(seconds).padStart(2, '0')}`;
+        const now = new Date();
         
         const callMsg = {
             id: Date.now(),
             sender: 'system',
             text: `Cuộc gọi ${currentCallType === 'voice' ? 'thoại' : 'video'} - Thời gian: ${timeStr}`,
-            time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+            time: now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+            date: now.toLocaleDateString('vi-VN')
         };
         currentChat.messages.push(callMsg);
         
