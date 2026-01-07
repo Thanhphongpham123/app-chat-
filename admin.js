@@ -465,21 +465,122 @@ function viewChatDetail(username, chatId) {
     if (!chat.messages || chat.messages.length === 0) {
         messagesContent.innerHTML = '<p style="text-align:center; color:#999; padding:20px;">Chưa có tin nhắn nào</p>';
     } else {
+        // Helper function to format date label
+        function getDateLabel(dateStr) {
+            if (!dateStr) return new Date().toLocaleDateString('vi-VN');
+            
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            
+            // Parse the date string
+            let msgDate;
+            try {
+                // Try parsing DD/MM/YYYY format
+                const parts = dateStr.split('/');
+                if (parts.length === 3) {
+                    msgDate = new Date(parts[2], parts[1] - 1, parts[0]);
+                    msgDate.setHours(0, 0, 0, 0);
+                } else {
+                    msgDate = new Date(dateStr);
+                    msgDate.setHours(0, 0, 0, 0);
+                }
+            } catch (e) {
+                return dateStr;
+            }
+            
+            if (msgDate.getTime() === today.getTime()) {
+                return `Hôm nay (${dateStr})`;
+            } else if (msgDate.getTime() === yesterday.getTime()) {
+                return `Hôm qua (${dateStr})`;
+            } else {
+                return dateStr;
+            }
+        }
+        
+        // Group messages by date
+        const messagesByDate = {};
+        
         chat.messages.forEach(msg => {
-            const msgDiv = document.createElement('div');
-            msgDiv.className = `message-item ${msg.sender === 'me' ? 'message-sent' : 'message-received'}`;
+            // Get date from message
+            let dateStr;
             
-            const senderName = msg.sender === 'me' ? username : chat.name;
-            const timestamp = msg.time || msg.timestamp || 'N/A';
+            if (msg.date) {
+                // Has explicit date field
+                dateStr = msg.date;
+            } else if (msg.id) {
+                // Try to extract date from ID (which is a timestamp)
+                try {
+                    const msgDate = new Date(msg.id);
+                    if (!isNaN(msgDate.getTime())) {
+                        dateStr = msgDate.toLocaleDateString('vi-VN');
+                    } else {
+                        dateStr = 'Tin nhắn cũ (không xác định được ngày)';
+                    }
+                } catch (e) {
+                    dateStr = 'Tin nhắn cũ (không xác định được ngày)';
+                }
+            } else {
+                // No date and no ID - truly old message
+                dateStr = 'Tin nhắn cũ (không có ngày)';
+            }
             
-            msgDiv.innerHTML = `
-                <div class="message-header">
-                    <strong>${escapeHtml(senderName)}</strong>
-                    <span class="message-time">${escapeHtml(timestamp)}</span>
-                </div>
-                <div class="message-text">${escapeHtml(msg.text || msg.content || '')}</div>
+            if (!messagesByDate[dateStr]) {
+                messagesByDate[dateStr] = [];
+            }
+            messagesByDate[dateStr].push(msg);
+        });
+        
+        // Sort dates (newest first)
+        const sortedDates = Object.keys(messagesByDate).sort((a, b) => {
+            // Always put "old messages" at the beginning
+            if (a.includes('Tin nhắn cũ')) return -1;
+            if (b.includes('Tin nhắn cũ')) return 1;
+            
+            const parseDate = (str) => {
+                const parts = str.split('/');
+                if (parts.length === 3) {
+                    return new Date(parts[2], parts[1] - 1, parts[0]);
+                }
+                return new Date(str);
+            };
+            return parseDate(a) - parseDate(b);
+        });
+        
+        // Display messages grouped by date
+        sortedDates.forEach(dateStr => {
+            // Add date separator with nice formatting
+            const dateSeparator = document.createElement('div');
+            dateSeparator.className = 'date-separator';
+            dateSeparator.style.cssText = 'text-align:center; padding:12px 0; margin:8px 0; color:#65676b; font-size:13px; font-weight:600; position:relative;';
+            
+            const dateLabel = getDateLabel(dateStr);
+            dateSeparator.innerHTML = `
+                <span style="background:#f0f2f5; padding:4px 12px; border-radius:12px; display:inline-block;">
+                    ${dateLabel}
+                </span>
             `;
-            messagesContent.appendChild(msgDiv);
+            messagesContent.appendChild(dateSeparator);
+            
+            // Add messages for this date
+            messagesByDate[dateStr].forEach(msg => {
+                const msgDiv = document.createElement('div');
+                msgDiv.className = `message-item ${msg.sender === 'me' || msg.sender === 'you' ? 'message-sent' : 'message-received'}`;
+                
+                const senderName = (msg.sender === 'me' || msg.sender === 'you') ? username : (msg.sender === 'system' ? 'Hệ thống' : chat.name);
+                const timestamp = msg.time || msg.timestamp || 'N/A';
+                
+                msgDiv.innerHTML = `
+                    <div class="message-header">
+                        <strong>${escapeHtml(senderName)}</strong>
+                        <span class="message-time">${escapeHtml(timestamp)}</span>
+                    </div>
+                    <div class="message-text">${escapeHtml(msg.text || msg.content || '')}</div>
+                `;
+                messagesContent.appendChild(msgDiv);
+            });
         });
     }
     

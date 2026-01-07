@@ -1658,6 +1658,7 @@ function sendMessage() {
     if (!text) return;
     const now = new Date();
     const time = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const date = now.toLocaleDateString('vi-VN');
 
     const msg = {
         id: Date.now(),
@@ -2327,46 +2328,56 @@ function answerCall() {
     
     console.log('📞 Call answered');
     
-    // Start timer
+    // Reset and start timer
     callDuration = 0;
-    updateCallTimer();
+    callTimerEl.textContent = '00:00';
+    
+    // Clear any existing timer first
+    if (callTimer) {
+        clearInterval(callTimer);
+        callTimer = null;
+    }
+    
+    // Start new timer
     callTimer = setInterval(() => {
         callDuration++;
-        updateCallTimer();
+        const minutes = Math.floor(callDuration / 60);
+        const seconds = callDuration % 60;
+        callTimerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     }, 1000);
-}
-
-function updateCallTimer() {
-    const callTimerEl = document.getElementById('callTimer');
-    const minutes = Math.floor(callDuration / 60);
-    const seconds = callDuration % 60;
-    callTimerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
 function endCall() {
     const callModal = document.getElementById('callModal');
     callModal.style.display = 'none';
     
-    // Stop timer
+    // Stop timer first
     if (callTimer) {
         clearInterval(callTimer);
         callTimer = null;
     }
     
-    console.log('📞 Call ended. Duration:', callDuration, 'seconds');
+    const finalDuration = callDuration;
+    console.log('📞 Call ended. Duration:', finalDuration, 'seconds');
     
     // Fake API call
     if (fakeApiEnabled) {
-        console.log('📤 FAKE API: END_CALL', { duration: callDuration, type: currentCallType });
+        console.log('📤 FAKE API: END_CALL', { duration: finalDuration, type: currentCallType });
     }
     
     // Add system message to chat
-    if (currentChat) {
+    if (currentChat && finalDuration > 0) {
+        const minutes = Math.floor(finalDuration / 60);
+        const seconds = finalDuration % 60;
+        const timeStr = `${minutes}:${String(seconds).padStart(2, '0')}`;
+        const now = new Date();
+        
         const callMsg = {
             id: Date.now(),
             sender: 'system',
-            text: `Cuộc gọi ${currentCallType === 'voice' ? 'thoại' : 'video'} - Thời gian: ${Math.floor(callDuration / 60)}:${String(callDuration % 60).padStart(2, '0')}`,
-            time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+            text: `Cuộc gọi ${currentCallType === 'voice' ? 'thoại' : 'video'} - Thời gian: ${timeStr}`,
+            time: now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+            date: now.toLocaleDateString('vi-VN')
         };
         currentChat.messages.push(callMsg);
         
@@ -2381,6 +2392,7 @@ function endCall() {
         renderConversations(allChats);
     }
     
+    // Reset
     callDuration = 0;
     currentCallType = null;
 }
