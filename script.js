@@ -59,7 +59,11 @@ const chatAvatar = document.getElementById('chatAvatar');
 const chatStatus = document.getElementById('chatStatus');
 const filterAllBtn = document.getElementById("filterAll");
 const filterUnreadBtn = document.getElementById("filterUnread");
+const filterMenuIcon = document.getElementById("filterMenuIcon");
+const filterPopupMenu = document.getElementById("filterPopupMenu");
+const markAllRead = document.getElementById("markAllRead");
 
+//kh filter
 filterAllBtn.onclick = () => {
     conversationFilter = "all";
     filterAllBtn.classList.add("active");
@@ -73,8 +77,6 @@ filterUnreadBtn.onclick = () => {
     filterAllBtn.classList.remove("active");
     renderConversations(allChats);
 };
-
-
 
 // mention box
 let mentionBox = document.createElement("div");
@@ -482,19 +484,43 @@ function wireAuthUI() {
     });
 }
 
+//danh dau da doc
+function markAllAsRead() {
+    allChats.forEach(c => c.unread = 0);
+    const cu = getCurrentUser?.();
+    if (cu) saveUserChats(cu, allChats);
+    renderConversations(allChats);
+}
+
+// mo popup
+filterMenuIcon.onclick = (e) => {
+    e.stopPropagation();
+    filterPopupMenu.style.display =
+        filterPopupMenu.style.display === "block" ? "none" : "block";
+};
+
+//khi nhan ra ngoai la dong
+document.addEventListener("click", () => {
+    filterPopupMenu.style.display = "none";
+});
+
+markAllRead.onclick = (e) => {
+    e.stopPropagation();
+    markAllAsRead();
+    filterPopupMenu.style.display = "none";
+};
 
 // Render conversations list
 function renderConversations(chats) {
     conversationsList.innerHTML = '';
 
-    // 1️⃣ lọc theo tab (all / unread)
+    //loc theo tag
     let chatsToRender = chats;
-
     if (conversationFilter === "unread") {
         chatsToRender = chatsToRender.filter(c => c.unread > 0);
     }
 
-    // 2️⃣ lọc theo ô tìm kiếm
+    //loc theo o tim kiem
     const keyword = searchInput.value.trim().toLowerCase();
     if (keyword) {
         chatsToRender = chatsToRender.filter(c =>
@@ -502,7 +528,7 @@ function renderConversations(chats) {
         );
     }
 
-    // 3️⃣ render danh sách cuối cùng
+    // render ds
     chatsToRender.forEach(chat => {
         const div = document.createElement('div');
         div.className = `conversation ${currentChat?.id === chat.id ? 'active' : ''}`;
