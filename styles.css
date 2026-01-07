@@ -108,8 +108,9 @@ body {
 /*filter*/
 .chat-filter {
     display: flex;
-    gap: 10px;
-    padding: 8px 12px;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
 }
 
 .filter-btn {
@@ -122,10 +123,41 @@ body {
     font-size: 13px;
 }
 
+.filter-left{
+    margin-left: 20px;
+}
+
 .filter-btn.active {
     background: #0a66c2;
     color: white;
     border-color: #0a66c2;
+}
+
+.filter-menu-icon {
+    cursor: pointer;
+    font-size: 20px;
+    padding: 4px 8px;
+}
+
+.filter-popup {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 32px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,.1);
+    z-index: 20;
+}
+
+.filter-popup-item {
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+.filter-popup-item:hover {
+    background: #f2f2f2;
 }
 
 /* Conversations List */

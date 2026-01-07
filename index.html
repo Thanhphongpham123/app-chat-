@@ -39,8 +39,18 @@
 
             <!-- Filter Tabs -->
             <div class="chat-filter">
-                <button id="filterAll" class="filter-btn active">Tất cả</button>
-                <button id="filterUnread" class="filter-btn">Chưa đọc</button>
+                <div class="filter-left">
+                    <button id="filterAll" class="filter-btn active">Tất cả</button>
+                    <button id="filterUnread" class="filter-btn">Chưa đọc</button>
+                </div>
+
+                <!-- dấu 3 chấm -->
+                <div id="filterMenuIcon" class="filter-menu-icon">⋯</div>
+
+                <!-- popup menu -->
+                <div id="filterPopupMenu" class="filter-popup">
+                    <div id="markAllRead" class="filter-popup-item">Đánh dấu tất cả đã đọc</div>
+                </div>
             </div>
 
             <!-- Conversations -->
