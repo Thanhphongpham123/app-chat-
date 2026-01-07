@@ -44,6 +44,7 @@ const inactiveTimers = {};
 let typingTimer = null;
 let mentionStartIndex = -1;
 let mentionSearch = "";
+let conversationFilter = "all";
 
 // DOM Elements
 const conversationsList = document.getElementById('conversationsList');
@@ -56,6 +57,24 @@ const searchInput = document.getElementById('searchInput');
 const chatName = document.getElementById('chatName');
 const chatAvatar = document.getElementById('chatAvatar');
 const chatStatus = document.getElementById('chatStatus');
+const filterAllBtn = document.getElementById("filterAll");
+const filterUnreadBtn = document.getElementById("filterUnread");
+
+filterAllBtn.onclick = () => {
+    conversationFilter = "all";
+    filterAllBtn.classList.add("active");
+    filterUnreadBtn.classList.remove("active");
+    renderConversations(allChats);
+};
+
+filterUnreadBtn.onclick = () => {
+    conversationFilter = "unread";
+    filterUnreadBtn.classList.add("active");
+    filterAllBtn.classList.remove("active");
+    renderConversations(allChats);
+};
+
+
 
 // mention box
 let mentionBox = document.createElement("div");
@@ -468,7 +487,23 @@ function wireAuthUI() {
 function renderConversations(chats) {
     conversationsList.innerHTML = '';
 
-    chats.forEach(chat => {
+    // 1️⃣ lọc theo tab (all / unread)
+    let chatsToRender = chats;
+
+    if (conversationFilter === "unread") {
+        chatsToRender = chatsToRender.filter(c => c.unread > 0);
+    }
+
+    // 2️⃣ lọc theo ô tìm kiếm
+    const keyword = searchInput.value.trim().toLowerCase();
+    if (keyword) {
+        chatsToRender = chatsToRender.filter(c =>
+            c.name.toLowerCase().includes(keyword)
+        );
+    }
+
+    // 3️⃣ render danh sách cuối cùng
+    chatsToRender.forEach(chat => {
         const div = document.createElement('div');
         div.className = `conversation ${currentChat?.id === chat.id ? 'active' : ''}`;
         div.innerHTML = `
@@ -483,9 +518,7 @@ function renderConversations(chats) {
                 </div>
                 <div class="conversation-message ${chat.unread > 0 ? 'unread' : ''}">
                     ${chat.lastMessage || ''}
-                    
                     <span class="conversation-time">${chat.timestamp ? formatTimestamp(chat.timestamp) : ''}</span>
-        
                 </div>
             </div>
             ${chat.online ? '<div class="online-badge"></div>' : ''}

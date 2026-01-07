@@ -115,6 +115,29 @@ body {
     color: #65676b;
 }
 
+/*filter*/
+.chat-filter {
+    display: flex;
+    gap: 10px;
+    padding: 8px 12px;
+}
+
+.filter-btn {
+    flex: 1;
+    padding: 6px 10px;
+    border-radius: 20px;
+    border: 1px solid #ddd;
+    background: #f4f4f4;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.filter-btn.active {
+    background: #0a66c2;
+    color: white;
+    border-color: #0a66c2;
+}
+
 /* Conversations List */
 .conversations {
     flex: 1;
