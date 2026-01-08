@@ -63,6 +63,14 @@ const filterMenuIcon = document.getElementById("filterMenuIcon");
 const filterPopupMenu = document.getElementById("filterPopupMenu");
 const markAllRead = document.getElementById("markAllRead");
 
+const CHAT_CATEGORIES = [
+    { key: 'gia-dinh', label: 'Gia đình', color: '#e53935' },
+    { key: 'khach-hang', label: 'Khách hàng', color: '#1e88e5' },
+    { key: 'cong-viec', label: 'Công việc', color: '#43a047' },
+    { key: 'ban-be', label: 'Bạn bè', color: '#fb8c00' },
+    { key: 'dong-nghiep', label: 'Đồng nghiệp', color: '#8e24aa' }
+];
+
 //kh filter
 filterAllBtn.onclick = () => {
     conversationFilter = "all";
@@ -298,6 +306,7 @@ function generateInitialChats(username) {
             online: index === 0, // User đầu tiên online
             unread: 0,
             lastActive: Date.now(),
+            category: null,
             messages: []
         }));
 
@@ -479,6 +488,45 @@ markAllRead.onclick = (e) => {
     filterPopupMenu.style.display = "none";
 };
 
+//category menu
+const categoryMenu = document.createElement('div');
+categoryMenu.className = 'conv-menu';
+categoryMenu.style.display = 'none';
+
+categoryMenu.innerHTML = CHAT_CATEGORIES.map(c => `
+    <div class="conv-menu-item category-item" data-category="${c.key}">
+        <span class="color-box" style="background:${c.color}"></span>
+        ${c.label}
+    </div>
+`).join('');
+document.body.appendChild(categoryMenu);
+
+//xu ly sk category menu
+categoryMenu.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const item = e.target.closest('.category-item');
+    if (!item) return;
+    const chat = categoryMenu.currentChat;
+    const selected = item.dataset.category;
+
+    // chon lai cung loai thi bo
+    if (chat.category === selected) {
+        delete chat.category;
+    } else {
+        chat.category = selected;
+    }
+    saveUserChats(getCurrentUser(), allChats);
+    categoryMenu.style.display = 'none';
+    renderConversations(allChats);
+});
+
+//dong tat ca menu khi nhan ra ngoai
+document.addEventListener('click', () => {
+    document.querySelectorAll('.conv-menu').forEach(m => {
+        m.style.display = 'none';
+    });
+});
+
 // Render conversations list
 function renderConversations(chats) {
     conversationsList.innerHTML = '';
@@ -501,18 +549,24 @@ function renderConversations(chats) {
     chatsToRender.forEach(chat => {
         const div = document.createElement('div');
         div.className = `conversation ${currentChat?.id === chat.id ? 'active' : ''}`;
+        div.style.position = 'relative';
+        const category = CHAT_CATEGORIES.find(c => c.key === chat.category);
         div.innerHTML = `
             <img src="${chat.avatar}" alt="" class="conversation-avatar">
             <div class="conversation-info">
                 <div class="conversation-header">
                     <span class="conversation-name">
-                        ${chat.name}
+                        <span class="name-text">${chat.name}</span>
                         ${chat.unread > 0 ? `<span class="badge-unread">${chat.unread}</span>` : ''}
                     </span>
                     <span class="conversation-menu-icon" style="display:none; cursor:pointer;">⋯</span>
                 </div>
-                <div class="conversation-message ${chat.unread > 0 ? 'unread' : ''}">
-                    ${chat.lastMessage || ''}
+                <div class="conversation-meta">
+                    ${category ? `
+                    <span class="category-dot" style="background:${category.color}"></span>` : ''}
+                    <span class="conversation-message ${chat.unread > 0 ? 'unread' : ''}">
+                        ${chat.lastMessage || ''}
+                    </span>
                     <span class="conversation-time">${chat.timestamp ? formatTimestamp(chat.timestamp) : ''}</span>
                 </div>
             </div>
@@ -534,9 +588,10 @@ function renderConversations(chats) {
             cursor:pointer;
             z-index:10;
         `;
-        menu.textContent = 'Xóa hội thoại';
-
-        div.style.position = 'relative';
+        menu.innerHTML = `
+            <div class="conv-menu-item delete">Xóa hội thoại</div>
+            <div class="conv-menu-item classify">Phân loại</div>
+        `;
         div.appendChild(menu);
 
         //xu ly hover
@@ -551,41 +606,41 @@ function renderConversations(chats) {
         div.addEventListener('mouseleave', () => {
             timeEl.style.display = 'inline';
             menuIcon.style.display = 'none';
-            menu.style.display = 'none';
         });
 
         // click icon mở menu
         menuIcon.addEventListener('click', (e) => {
             e.stopPropagation();
-            menu.style.display = 'block';
+            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
         });
 
-        // click ra ngoài đóng menu
-        document.addEventListener('click', () => {
-            menu.style.display = 'none';
-        });
-
+        //click mo menu item
         menu.addEventListener('click', (e) => {
             e.stopPropagation();
 
-            if (!confirm(`Xóa hội thoại với ${chat.name}?`)) return;
-
-            // xóa khỏi allChats
-            allChats = allChats.filter(c => c.id !== chat.id);
-
-            // lưu vào localStorage
-            const cu = getCurrentUser();
-            if (cu) saveUserChats(cu, allChats);
-
-            // nếu đang mở chat này → đóng
-            if (currentChat && currentChat.id === chat.id) {
-                currentChat = null;
-                chatWindow.style.display = 'none';
-                emptyChat.style.display = 'flex';
+            // xóa hội thoại
+            if (e.target.closest('.delete')) {
+                if (!confirm(`Xóa hội thoại với ${chat.name}?`)) return;
+                allChats = allChats.filter(c => c.id !== chat.id);
+                saveUserChats(getCurrentUser(), allChats);
+                if (currentChat?.id === chat.id) {
+                    currentChat = null;
+                    chatWindow.style.display = 'none';
+                    emptyChat.style.display = 'flex';
+                }
+                renderConversations(allChats);
+                return;
             }
 
-            //render lại ds
-            renderConversations(allChats);
+            // mo popup 2 phan loaii
+            if (e.target.closest('.classify')) {
+                e.stopPropagation();
+                const rect = menu.getBoundingClientRect();
+                categoryMenu.style.top = rect.top + 'px';
+                categoryMenu.style.left = rect.right + 6 + 'px';
+                categoryMenu.style.display = 'block';
+                categoryMenu.currentChat = chat;
+            }
         });
 
         div.addEventListener('click', () => openChat(chat));
