@@ -217,12 +217,76 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 4px;
 }
 
 .conversation-name {
     font-weight: 500;
     font-size: 14px;
+}
+
+.conversation-menu-icon {
+    font-size: 13px;
+    padding: 4px 8px;
+    border-radius: 50%;
+}
+
+.conversation-menu-icon:hover {
+    background: #e4e6eb;
+}
+
+.conv-menu {
+    position: absolute;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,.15);
+    min-width: 180px;
+    z-index: 9999;
+}
+
+.conv-menu-item {
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.conv-menu-item:hover {
+    background: #f2f2f2;
+}
+
+.conversation-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.category-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.category-item:hover {
+    background: #f2f2f2;
+}
+
+.color-box {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+.category-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    display: inline-block;
+    flex-shrink: 0;
 }
 
 .badge-unread {
