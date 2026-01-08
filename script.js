@@ -45,6 +45,7 @@ let typingTimer = null;
 let mentionStartIndex = -1;
 let mentionSearch = "";
 let conversationFilter = "all";
+let activeCategoryFilters = new Set();
 
 // DOM Elements
 const conversationsList = document.getElementById('conversationsList');
@@ -62,6 +63,8 @@ const filterUnreadBtn = document.getElementById("filterUnread");
 const filterMenuIcon = document.getElementById("filterMenuIcon");
 const filterPopupMenu = document.getElementById("filterPopupMenu");
 const markAllRead = document.getElementById("markAllRead");
+const filterCategoryBtn = document.getElementById('filterCategoryBtn');
+const categoryFilterPopup = document.getElementById('categoryFilterPopup');
 
 const CHAT_CATEGORIES = [
     { key: 'gia-dinh', label: 'Gia đình', color: '#e53935' },
@@ -488,6 +491,53 @@ markAllRead.onclick = (e) => {
     filterPopupMenu.style.display = "none";
 };
 
+//render popup loc phan loai
+function renderCategoryFilterPopup() {
+    const list = categoryFilterPopup.querySelector('.filter-category-list');
+    list.innerHTML = CHAT_CATEGORIES.map(c => `
+        <label class="filter-category-item">
+            <input type="checkbox"
+                   value="${c.key}"
+                   ${activeCategoryFilters.has(c.key) ? 'checked' : ''}>
+            <span class="color-box" style="background:${c.color}"></span>
+            ${c.label}
+        </label>
+    `).join('');
+}
+
+//xu ly su kien loc phan laoi
+filterCategoryBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    renderCategoryFilterPopup();
+    const rect = filterCategoryBtn.getBoundingClientRect();
+    categoryFilterPopup.style.top = rect.bottom + 6 + 'px';
+    categoryFilterPopup.style.left = rect.left + 'px';
+    categoryFilterPopup.style.display = 'block';
+});
+
+//xu ly su kien tick de loc phan loai
+categoryFilterPopup.addEventListener('change', (e) => {
+    const checkbox = e.target;
+    if (checkbox.tagName !== 'INPUT') return;
+    const key = checkbox.value;
+    if (checkbox.checked) {
+        activeCategoryFilters.add(key);
+    } else {
+        activeCategoryFilters.delete(key);
+    }
+    renderConversations(allChats);
+});
+
+categoryFilterPopup.addEventListener('click', (e) => {
+    e.stopPropagation();
+});
+
+//dong pop loc phan loai
+document.addEventListener('click', () => {
+    categoryFilterPopup.style.display = 'none';
+});
+
+
 //category menu
 const categoryMenu = document.createElement('div');
 categoryMenu.className = 'conv-menu';
@@ -542,6 +592,13 @@ function renderConversations(chats) {
     if (keyword) {
         chatsToRender = chatsToRender.filter(c =>
             c.name.toLowerCase().includes(keyword)
+        );
+    }
+
+    // loc phan loai theo tick
+    if (activeCategoryFilters.size > 0) {
+        chatsToRender = chatsToRender.filter(chat =>
+            chat.category && activeCategoryFilters.has(chat.category)
         );
     }
 
