@@ -17,7 +17,7 @@
                     <h1>Chats</h1>
                     <div class="user-area" id="userArea">
                         <span id="currentUserDisplay" class="current-user"></span>
-                        <button id="logoutBtn" class="icon-btn" style="display:none;">Đăng xuất</button>
+                        <button id="logoutBtn" class="icon-btn" style="display:none;" title="Đăng xuất"><i class="fas fa-right-from-bracket"></i></button>
                     </div>
                 <div class="header-actions">
                     <button class="icon-btn" title="Cuộc trò chuyện mới">
@@ -27,7 +27,7 @@
                         <i class="fas fa-users"></i>
                     </button>
                     <button class="icon-btn" title="Cài đặt">
-                        <i class="fas fa-ellipsis-h"></i>
+                        <i class="fas fa-cog"></i>
                     </button>
                 </div>
             </div>
@@ -43,6 +43,7 @@
                 <div class="filter-left">
                     <button id="filterAll" class="filter-btn active">Tất cả</button>
                     <button id="filterUnread" class="filter-btn">Chưa đọc</button>
+                    <button id="filterCategoryBtn" class="filter-btn">Phân loại ▾</button>
                 </div>
 
                 <!-- dấu 3 chấm -->
@@ -278,6 +279,15 @@
             </div>
         </div>
     </div>
+
+    <div id="categoryFilterPopup" class="filter-popup filter-category-popup" style="display:none;">
+        <div class="filter-popup-title">Theo thẻ phân loại</div>
+
+        <div class="filter-category-list">
+            <!-- render bằng JS -->
+        </div>
+    </div>
+
 
     <script src="script.js"></script>
     <script>

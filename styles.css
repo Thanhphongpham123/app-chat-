@@ -170,6 +170,53 @@ body {
     background: #f2f2f2;
 }
 
+.filter-category-popup {
+    display: none;
+    position: absolute;
+    right: 36px;
+    top: 32px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 6px 16px rgba(0,0,0,.15);
+    z-index: 30;
+    width: max-content;
+    padding: 4px 0;
+}
+
+.filter-category-title {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 12px;
+    white-space: nowrap;
+    border-bottom: 1px solid #eee;
+    color: #333;
+}
+
+.filter-category-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.filter-category-item:hover {
+    background: #f2f2f2;
+}
+
+.filter-category-item input {
+    cursor: pointer;
+}
+
+.filter-category-color {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px; /* hình vuông */
+    flex-shrink: 0;
+}
+
 /* Conversations List */
 .conversations {
     flex: 1;
