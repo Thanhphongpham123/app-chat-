@@ -356,6 +356,32 @@ function saveUsers(list) {
     localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(list));
 }
 
+// ---------- Group membership helpers ----------
+// Trả về danh sách nhóm (objects) mà cả `userA` và `userB` đều là thành viên
+function getGroupsContainingUsers(userA, userB) {
+    if (!userA || !userB) return [];
+    try {
+        return (allChats || []).filter(c => c.isGroup && Array.isArray(c.members) && c.members.includes(userA) && c.members.includes(userB));
+    } catch (e) {
+        console.warn('getGroupsContainingUsers error', e);
+        return [];
+    }
+}
+
+// Trả về true nếu hai user cùng ít nhất một nhóm chung
+function areUsersInSameGroup(userA, userB) {
+    return getGroupsContainingUsers(userA, userB).length > 0;
+}
+
+// Expose ra `window` để dễ thử nghiệm từ console
+try {
+    window.getGroupsContainingUsers = getGroupsContainingUsers;
+    window.areUsersInSameGroup = areUsersInSameGroup;
+} catch (e) {
+    // ignore if window not available in some environments
+}
+
+
 function hashPw(pw) {
     // simple client-side encoding (not secure) - sufficient for demo without SQL
     return btoa(pw);
@@ -2038,7 +2064,17 @@ function openCreateGroupModal() {
         const id = `guser_${u}`;
         const row = document.createElement('div');
         row.style.padding = '6px 4px';
-        row.innerHTML = `<label style="display:flex; gap:8px; align-items:center"><input type="checkbox" id="${id}" value="${u}"> <span>${u}</span></label>`;
+
+        // kiểm tra xem currentUser và u đã cùng nhóm chưa
+        const existingGroups = getGroupsContainingUsers(currentUser, u) || [];
+        if (existingGroups.length > 0) {
+            // nếu đã cùng nhóm, disable checkbox và hiển thị tên nhóm
+            const names = existingGroups.map(g => g.name || '(nhóm)').join(', ');
+            row.innerHTML = `<label style="display:flex; gap:8px; align-items:center"><input type="checkbox" id="${id}" value="${u}" disabled> <span>${u} <small style=\"color:#777; margin-left:8px\">(đã cùng nhóm: ${escapeHtml(names)})</small></span></label>`;
+        } else {
+            row.innerHTML = `<label style="display:flex; gap:8px; align-items:center"><input type="checkbox" id="${id}" value="${u}"> <span>${u}</span></label>`;
+        }
+
         list.appendChild(row);
     });
 
@@ -2048,7 +2084,9 @@ function openCreateGroupModal() {
         selectAll.checked = false;
         selectAll.addEventListener('change', () => {
             const checkboxes = list.querySelectorAll('input[type=checkbox]');
-            checkboxes.forEach(cb => cb.checked = selectAll.checked);
+            checkboxes.forEach(cb => {
+                if (!cb.disabled) cb.checked = selectAll.checked;
+            });
         });
     }
 
@@ -2056,6 +2094,35 @@ function openCreateGroupModal() {
 
     const cancel = document.getElementById('cancelCreateGroup');
     const confirm = document.getElementById('confirmCreateGroup');
+
+    // Kiểm tra nếu không có checkbox nào có thể chọn được (tất cả đều disabled)
+    function updateSelectableState() {
+        const selectable = list.querySelectorAll('input[type=checkbox]:not([disabled])');
+        const noteId = 'noSelectableNote';
+        const existingNote = document.getElementById(noteId);
+        if (selectable.length === 0) {
+            if (!existingNote) {
+                const note = document.createElement('div');
+                note.id = noteId;
+                note.style.color = '#c0392b';
+                note.style.fontSize = '13px';
+                note.style.margin = '8px 0';
+                note.textContent = 'Không có thành viên hợp lệ để tạo nhóm — tất cả đã cùng nhóm với bạn.';
+                // chèn trước ô nhập tên nhóm
+                if (nameInput && nameInput.parentNode) nameInput.parentNode.insertBefore(note, nameInput.nextSibling);
+                else list.parentNode.insertBefore(note, list.nextSibling);
+            }
+            if (confirm) confirm.disabled = true;
+        } else {
+            if (existingNote) existingNote.remove();
+            if (confirm) confirm.disabled = false;
+        }
+    }
+
+    // Gắn listener để cập nhật trạng thái khi checkbox thay đổi
+    Array.from(list.querySelectorAll('input[type=checkbox]')).forEach(cb => cb.addEventListener('change', updateSelectableState));
+    // khởi tạo trạng thái
+    updateSelectableState();
 
     function onClose() {
         modal.style.display = 'none';
