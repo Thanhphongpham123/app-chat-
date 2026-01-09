@@ -29,6 +29,10 @@
                     <i class="fas fa-comments"></i>
                     <span>Quản lý chat</span>
                 </a>
+                <a href="#" class="nav-item" data-section="search">
+                    <i class="fas fa-search"></i>
+                    <span>Tìm kiếm nâng cao</span>
+                </a>
             </nav>
 
             <div class="admin-footer">
@@ -172,6 +176,91 @@
                             <!-- Populated by JS -->
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- Advanced Search Section -->
+            <div id="searchSection" class="content-section">
+                <div class="section-header">
+                    <h2>Tìm kiếm nâng cao</h2>
+                    <button id="exportSearchBtn" class="btn-primary" style="display: none;">
+                        <i class="fas fa-download"></i>
+                        Xuất kết quả
+                    </button>
+                </div>
+
+                <div class="search-panel">
+                    <div class="search-tabs">
+                        <button class="search-tab active" data-tab="messages">Tin nhắn</button>
+                        <button class="search-tab" data-tab="users">Tài khoản</button>
+                        <button class="search-tab" data-tab="chats">Nhóm chat</button>
+                    </div>
+
+                    <!-- Messages Search -->
+                    <div id="messagesSearchTab" class="search-tab-content active">
+                        <div class="search-form">
+                            <div class="form-group">
+                                <label>Nội dung tin nhắn</label>
+                                <input type="text" id="searchMessageContent" placeholder="Nhập nội dung tin nhắn cần tìm...">
+                            </div>
+                            <button id="searchMessagesBtn" class="btn-primary">
+                                <i class="fas fa-search"></i>
+                                Tìm kiếm tin nhắn
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Users Search -->
+                    <div id="usersSearchTab" class="search-tab-content">
+                        <div class="search-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Tên tài khoản</label>
+                                    <input type="text" id="searchUserName" placeholder="Tìm kiếm tài khoản...">
+                                </div>
+                                <div class="form-group">
+                                    <label>Vai trò</label>
+                                    <select id="searchUserRole">
+                                        <option value="all">Tất cả</option>
+                                        <option value="admin">Admin</option>
+                                        <option value="user">User</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button id="searchUsersBtn" class="btn-primary">
+                                <i class="fas fa-search"></i>
+                                Tìm kiếm tài khoản
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Chats Search -->
+                    <div id="chatsSearchTab" class="search-tab-content">
+                        <div class="search-form">
+                            <div class="form-group">
+                                <label>Tên nhóm/chat</label>
+                                <input type="text" id="searchChatName" placeholder="Tìm kiếm nhóm...">
+                            </div>
+                            <button id="searchChatsBtn" class="btn-primary">
+                                <i class="fas fa-search"></i>
+                                Tìm kiếm nhóm chat
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Search Results -->
+                <div id="searchResults" class="search-results" style="display: none;">
+                    <div class="results-header">
+                        <h3>Kết quả tìm kiếm: <span id="resultsCount">0</span></h3>
+                        <button id="clearResultsBtn" class="btn-secondary">
+                            <i class="fas fa-times"></i>
+                            Xóa kết quả
+                        </button>
+                    </div>
+                    <div id="searchResultsContent" class="results-content">
+                        <!-- Populated by JS -->
+                    </div>
                 </div>
             </div>
         </div>

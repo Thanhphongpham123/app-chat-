@@ -76,13 +76,15 @@ function setupNavigation() {
             const titles = {
                 dashboard: 'Dashboard',
                 users: 'Quản lý tài khoản',
-                chats: 'Quản lý chat'
+                chats: 'Quản lý chat',
+                search: 'Tìm kiếm nâng cao'
             };
             document.getElementById('pageTitle').textContent = titles[sectionId];
             
             // Load section data
             if (sectionId === 'users') loadUsersTable();
             if (sectionId === 'chats') loadChatsTable();
+            if (sectionId === 'search') initSearchSection();
         });
     });
 }
@@ -127,6 +129,9 @@ function setupEventListeners() {
     
     // Filter by role
     document.getElementById('filterRole')?.addEventListener('change', filterUsers);
+    
+    // Search section
+    setupSearchListeners();
 }
 
 // Load dashboard data
@@ -648,6 +653,389 @@ if (localStorage.getItem('adminDarkMode') === 'on') {
     document.body.classList.add('dark');
     const icon = document.querySelector('#darkModeToggle i');
     if (icon) icon.className = 'fas fa-sun';
+}
+
+// ============================================
+// ADVANCED SEARCH FUNCTIONS
+// ============================================
+
+// Initialize search section
+function initSearchSection() {
+    // Clear previous results
+    document.getElementById('searchResults').style.display = 'none';
+    document.getElementById('exportSearchBtn').style.display = 'none';
+}
+
+// Setup search event listeners
+function setupSearchListeners() {
+    // Search tabs
+    const searchTabs = document.querySelectorAll('.search-tab');
+    searchTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const tabName = tab.dataset.tab;
+            
+            // Update active tab
+            searchTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            
+            // Update active content
+            document.querySelectorAll('.search-tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(tabName + 'SearchTab').classList.add('active');
+        });
+    });
+    
+    // Search buttons
+    document.getElementById('searchMessagesBtn')?.addEventListener('click', searchMessages);
+    document.getElementById('searchUsersBtn')?.addEventListener('click', searchUsers);
+    document.getElementById('searchChatsBtn')?.addEventListener('click', searchChatsAdvanced);
+    
+    // Clear results
+    document.getElementById('clearResultsBtn')?.addEventListener('click', clearSearchResults);
+    
+    // Export results
+    document.getElementById('exportSearchBtn')?.addEventListener('click', exportSearchResults);
+}
+
+// Search messages
+function searchMessages() {
+    const content = document.getElementById('searchMessageContent').value.trim();
+    
+    if (!content) {
+        alert('Vui lòng nhập nội dung tin nhắn cần tìm');
+        return;
+    }
+    
+    const results = [];
+    const users = loadUsers();
+    
+    // Convert search term to lowercase for case-insensitive search
+    const contentLower = content.toLowerCase();
+    
+    users.forEach(user => {
+        const chats = loadUserChats(user.user);
+        
+        chats.forEach(chat => {
+            if (chat.messages && chat.messages.length > 0) {
+                chat.messages.forEach(msg => {
+                    // Check if message text contains search content
+                    if (msg.text && msg.text.toLowerCase().includes(contentLower)) {
+                        results.push({
+                            type: 'message',
+                            chatName: chat.name,
+                            chatType: chat.isGroup ? 'Nhóm' : '1-1',
+                            owner: user.user,
+                            sender: msg.sender,
+                            text: msg.text,
+                            time: msg.time,
+                            date: msg.date,
+                            chatId: chat.id,
+                            searchTerm: content
+                        });
+                    }
+                });
+            }
+        });
+    });
+    
+    displaySearchResults(results, 'messages');
+}
+
+// Search users advanced
+function searchUsers() {
+    const username = document.getElementById('searchUserName').value.trim();
+    const role = document.getElementById('searchUserRole').value;
+    
+    if (!username && role === 'all') {
+        alert('Vui lòng nhập ít nhất một tiêu chí tìm kiếm');
+        return;
+    }
+    
+    const users = loadUsers();
+    const results = [];
+    const usernameLower = username.toLowerCase();
+    
+    users.forEach(user => {
+        let match = true;
+        
+        // Check username - only if username is provided
+        if (username && user.user) {
+            if (!user.user.toLowerCase().includes(usernameLower)) {
+                match = false;
+            }
+        }
+        
+        // Check role - only if role filter is set
+        if (role !== 'all') {
+            if (role === 'admin' && !user.isAdmin) match = false;
+            if (role === 'user' && user.isAdmin) match = false;
+        }
+        
+        if (match) {
+            const chats = loadUserChats(user.user);
+            let totalMessages = 0;
+            chats.forEach(chat => {
+                totalMessages += chat.messages?.length || 0;
+            });
+            
+            results.push({
+                type: 'user',
+                username: user.user,
+                role: user.isAdmin ? 'Admin' : 'User',
+                createdAt: user.createdAt || 'N/A',
+                totalChats: chats.length,
+                totalMessages: totalMessages,
+                searchTerm: username
+            });
+        }
+    });
+    
+    displaySearchResults(results, 'users');
+}
+
+// Search chats advanced
+function searchChatsAdvanced() {
+    const chatName = document.getElementById('searchChatName').value.trim();
+    
+    if (!chatName) {
+        alert('Vui lòng nhập tên nhóm/chat cần tìm');
+        return;
+    }
+    
+    const users = loadUsers();
+    const results = [];
+    const chatNameLower = chatName.toLowerCase();
+    
+    users.forEach(user => {
+        const chats = loadUserChats(user.user);
+        
+        chats.forEach(chat => {
+            // Check chat name
+            if (chat.name && chat.name.toLowerCase().includes(chatNameLower)) {
+                const memberCount = chat.isGroup ? (chat.members?.length || 0) : 2;
+                results.push({
+                    type: 'chat',
+                    chatName: chat.name,
+                    chatType: chat.isGroup ? 'Nhóm' : '1-1',
+                    owner: user.user,
+                    members: memberCount,
+                    messages: chat.messages?.length || 0,
+                    chatId: chat.id,
+                    searchTerm: chatName
+                });
+            }
+        });
+    });
+    
+    displaySearchResults(results, 'chats');
+}
+
+// Display search results
+function displaySearchResults(results, type) {
+    const resultsContainer = document.getElementById('searchResults');
+    const resultsContent = document.getElementById('searchResultsContent');
+    const resultsCount = document.getElementById('resultsCount');
+    const exportBtn = document.getElementById('exportSearchBtn');
+    
+    resultsCount.textContent = results.length;
+    resultsContainer.style.display = 'block';
+    
+    if (results.length > 0) {
+        exportBtn.style.display = 'flex';
+    } else {
+        exportBtn.style.display = 'none';
+    }
+    
+    if (results.length === 0) {
+        resultsContent.innerHTML = `
+            <div class="no-results">
+                <i class="fas fa-search"></i>
+                <p>Không tìm thấy kết quả nào phù hợp</p>
+            </div>
+        `;
+        return;
+    }
+    
+    resultsContent.innerHTML = '';
+    
+    results.forEach((result, index) => {
+        const item = document.createElement('div');
+        item.className = 'result-item';
+        
+        if (type === 'messages') {
+            const highlightedText = highlightSearchTerm(result.text, result.searchTerm);
+            item.innerHTML = `
+                <div class="result-item-header">
+                    <div class="result-item-title">
+                        <i class="fas fa-comment"></i> ${escapeHtml(result.chatName)}
+                    </div>
+                    <span class="badge ${result.chatType === 'Nhóm' ? 'badge-admin' : 'badge-user'}">${result.chatType}</span>
+                </div>
+                <div class="result-item-meta">
+                    <span><i class="fas fa-user"></i> ${escapeHtml(result.sender)}</span>
+                    <span><i class="fas fa-clock"></i> ${result.time || 'N/A'}</span>
+                    <span><i class="fas fa-calendar"></i> ${result.date || 'N/A'}</span>
+                    <span><i class="fas fa-folder"></i> Chủ sở hữu: ${escapeHtml(result.owner)}</span>
+                </div>
+                <div class="result-item-content">
+                    ${highlightedText}
+                </div>
+                <div class="result-item-actions">
+                    <button class="btn-icon btn-edit" onclick="viewChatDetail('${escapeHtml(result.owner)}', ${result.chatId})" title="Xem chi tiết chat">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            `;
+        } else if (type === 'users') {
+            const highlightedUsername = highlightSearchTerm(result.username, result.searchTerm);
+            item.innerHTML = `
+                <div class="result-item-header">
+                    <div class="result-item-title">
+                        <i class="fas fa-user"></i> ${highlightedUsername}
+                    </div>
+                    <span class="badge ${result.role === 'Admin' ? 'badge-admin' : 'badge-user'}">${result.role}</span>
+                </div>
+                <div class="result-item-meta">
+                    <span><i class="fas fa-calendar"></i> Tạo: ${result.createdAt}</span>
+                    <span><i class="fas fa-comments"></i> ${result.totalChats} cuộc trò chuyện</span>
+                    <span><i class="fas fa-comment"></i> ${result.totalMessages} tin nhắn</span>
+                </div>
+                <div class="result-item-actions">
+                    <button class="btn-icon btn-edit" onclick="editUser('${escapeHtml(result.username)}')" title="Chỉnh sửa">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    ${result.username !== 'admin' ? `
+                    <button class="btn-icon btn-delete" onclick="deleteUser('${escapeHtml(result.username)}')" title="Xóa">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    ` : ''}
+                </div>
+            `;
+        } else if (type === 'chats') {
+            const highlightedChatName = highlightSearchTerm(result.chatName, result.searchTerm);
+            item.innerHTML = `
+                <div class="result-item-header">
+                    <div class="result-item-title">
+                        <i class="fas fa-comments"></i> ${highlightedChatName}
+                    </div>
+                    <span class="badge ${result.chatType === 'Nhóm' ? 'badge-admin' : 'badge-user'}">${result.chatType}</span>
+                </div>
+                <div class="result-item-meta">
+                    <span><i class="fas fa-user"></i> Chủ sở hữu: ${escapeHtml(result.owner)}</span>
+                    <span><i class="fas fa-users"></i> ${result.members} thành viên</span>
+                    <span><i class="fas fa-comment"></i> ${result.messages} tin nhắn</span>
+                </div>
+                <div class="result-item-actions">
+                    <button class="btn-icon btn-edit" onclick="viewChatDetail('${escapeHtml(result.owner)}', ${result.chatId})" title="Xem chi tiết">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn-icon btn-delete" onclick="deleteChat('${escapeHtml(result.owner)}', ${result.chatId})" title="Xóa">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `;
+        }
+        
+        resultsContent.appendChild(item);
+    });
+    
+    // Store results for export
+    window.currentSearchResults = results;
+    window.currentSearchType = type;
+}
+
+// Highlight search term in text
+function highlightSearchTerm(text, searchTerm) {
+    if (!searchTerm) return escapeHtml(text);
+    
+    const escapedText = escapeHtml(text);
+    const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
+    return escapedText.replace(regex, '<span class="result-item-highlight">$1</span>');
+}
+
+// Escape regex special characters
+function escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Parse date string to Date object
+function parseDateString(dateStr) {
+    if (!dateStr) return new Date();
+    
+    // Try DD/MM/YYYY format
+    const parts = dateStr.split('/');
+    if (parts.length === 3) {
+        return new Date(parts[2], parts[1] - 1, parts[0]);
+    }
+    
+    // Fallback to default parsing
+    return new Date(dateStr);
+}
+
+// Clear search results
+function clearSearchResults() {
+    document.getElementById('searchResults').style.display = 'none';
+    document.getElementById('exportSearchBtn').style.display = 'none';
+    
+    // Clear form inputs
+    document.querySelectorAll('.search-form input').forEach(input => {
+        if (input.type !== 'button') {
+            input.value = '';
+        }
+    });
+    document.querySelectorAll('.search-form select').forEach(select => {
+        select.selectedIndex = 0;
+    });
+    
+    window.currentSearchResults = null;
+    window.currentSearchType = null;
+}
+
+// Export search results
+function exportSearchResults() {
+    if (!window.currentSearchResults || window.currentSearchResults.length === 0) {
+        alert('Không có kết quả để xuất');
+        return;
+    }
+    
+    const results = window.currentSearchResults;
+    const type = window.currentSearchType;
+    
+    // Create CSV content
+    let csv = '';
+    
+    if (type === 'messages') {
+        csv = 'STT,Tên Chat,Loại,Người gửi,Nội dung,Thời gian,Ngày,Chủ sở hữu\n';
+        results.forEach((r, i) => {
+            csv += `${i + 1},"${r.chatName}","${r.chatType}","${r.sender}","${r.text}","${r.time}","${r.date}","${r.owner}"\n`;
+        });
+    } else if (type === 'users') {
+        csv = 'STT,Tài khoản,Vai trò,Ngày tạo,Số cuộc trò chuyện,Số tin nhắn\n';
+        results.forEach((r, i) => {
+            csv += `${i + 1},"${r.username}","${r.role}","${r.createdAt}",${r.totalChats},${r.totalMessages}\n`;
+        });
+    } else if (type === 'chats') {
+        csv = 'STT,Tên nhóm/chat,Loại,Chủ sở hữu,Số thành viên,Số tin nhắn\n';
+        results.forEach((r, i) => {
+            csv += `${i + 1},"${r.chatName}","${r.chatType}","${r.owner}",${r.members},${r.messages}\n`;
+        });
+    }
+    
+    // Create download link
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `search_results_${type}_${new Date().getTime()}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    alert('Đã xuất kết quả tìm kiếm thành công!');
 }
 
 // Initialize on page load
