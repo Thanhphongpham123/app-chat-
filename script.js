@@ -883,6 +883,7 @@ function openChat(chat) {
 
     // Render messages
     renderMessages(chat.messages);
+    renderPinnedMessage();
     renderConversations(allChats);
 
     messageInput.focus();
@@ -1665,6 +1666,7 @@ function renderMessages(messages) {
             menu.className = 'message-actions-menu';
             menu.innerHTML = `
                 <div class="copy-msg">Copy</div>
+                 <div class="pin-msg">Ghim tin nhắn</div>
                 <div class="recall-msg">Thu hồi</div>
                 <div class="delete-msg">Xóa</div>
             `;
@@ -1702,6 +1704,23 @@ function renderMessages(messages) {
                 renderMessages(messages);
                 const cu = getCurrentUser();
                 if (cu) saveUserChats(cu, allChats);
+                menu.style.display = 'none';
+            });
+
+            //xu ly click ghim tinn nhan
+            menu.querySelector('.pin-msg').addEventListener('click', () => {
+                const cu = getCurrentUser();
+                currentChat.pinnedMessage = {
+                    id: msg.id,
+                    text: msg.text,
+                    senderId: msg.sender,
+                    senderName:
+                        msg.sender === 'you'
+                            ? cu?.name || 'Bạn'
+                            : msg.senderName || currentChat.name
+                };
+                if (cu) saveUserChats(cu, allChats);
+                renderPinnedMessage();
                 menu.style.display = 'none';
             });
 
@@ -1764,17 +1783,65 @@ function renderMessages(messages) {
             }
             msgDiv.appendChild(statusDiv);
         }
-
         const timeDiv = document.createElement('div');
         timeDiv.className = 'message-time';
         timeDiv.textContent = group[group.length - 1].time;
 
         msgDiv.appendChild(timeDiv);
-
         messagesContainer.appendChild(msgDiv);
     });
     // Scroll to bottom
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+//ham ghim tin nhan
+function renderPinnedMessage() {
+    const box = document.getElementById('pinnedMessageBox');
+    const content = document.getElementById('pinnedMessageContent');
+    if (!box || !content) return;
+    const pinned = currentChat?.pinnedMessage;
+    if (!pinned) {
+        box.style.display = 'none';
+        content.innerHTML = '';
+        return;
+    }
+    content.innerHTML = `
+        <span class="pin-icon">📌</span>
+        <b>${pinned.senderName}:</b>
+        ${pinned.text || '[Hình ảnh]'}
+    `;
+    box.style.display = 'block';
+}
+
+//ham popup ghim tin nhan
+function initPinnedMenu() {
+    const pinnedMenuIcon = document.getElementById('pinnedMenuIcon');
+    const pinnedMenu = document.getElementById('pinnedMenu');
+    const unpinMessage = document.getElementById('unpinMessage');
+
+    if (!pinnedMenuIcon || !pinnedMenu || !unpinMessage) return;
+
+    //mo menu popup
+    pinnedMenuIcon.addEventListener('click', (e) => {
+        e.stopPropagation();
+        pinnedMenu.style.display =
+            pinnedMenu.style.display === 'block' ? 'none' : 'block';
+    });
+
+    // chuc nang bo ghim tn
+    unpinMessage.addEventListener('click', () => {
+        if (!currentChat) return;
+        delete currentChat.pinnedMessage;
+        const cu = getCurrentUser();
+        if (cu) saveUserChats(cu, allChats);
+        renderPinnedMessage();
+        pinnedMenu.style.display = 'none';
+    });
+
+    // nhan ra ngoai dong popup
+    document.addEventListener('click', () => {
+        pinnedMenu.style.display = 'none';
+    });
 }
 
 //highlight mention
@@ -1860,7 +1927,7 @@ function sendMessage() {
     const msg = {
         id: Date.now(),
         sender: 'you',
-        text: text,
+        text: messageInput.value,
         time: now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
         date: now.toISOString().split("T")[0],
         fullTime: new Date().toISOString(),
@@ -2358,6 +2425,7 @@ function closeMention() {
     mentionBox.style.display = "none";
 }
 
+initPinnedMenu();
 
 // Start
 init();
@@ -2491,7 +2559,6 @@ const api = {
 
 // expose to console for quick testing
 window.api = api;
-
 console.log('API helpers loaded. Use window.api.connect(url) to connect.');
 
 // ========== VOICE/VIDEO CALL FEATURE ==========
@@ -2629,7 +2696,6 @@ function endCall() {
         renderMessages(currentChat.messages);
         renderConversations(allChats);
     }
-    
     // Reset
     callDuration = 0;
     currentCallType = null;
