@@ -823,6 +823,7 @@ function openChat(chat) {
 
     // Render messages
     renderMessages(chat.messages);
+    renderPinnedMessage();
     renderConversations(allChats);
 
     messageInput.focus();
@@ -1497,6 +1498,7 @@ function renderMessages(messages) {
             menu.className = 'message-actions-menu';
             menu.innerHTML = `
                 <div class="copy-msg">Copy</div>
+                 <div class="pin-msg">Ghim tin nhắn</div>
                 <div class="recall-msg">Thu hồi</div>
                 <div class="delete-msg">Xóa</div>
             `;
@@ -1529,6 +1531,48 @@ function renderMessages(messages) {
                 renderMessages(messages);
             });
 
+<<<<<<< HEAD
+=======
+            //xu ly click ghim tinn nhan
+            menu.querySelector('.pin-msg').addEventListener('click', () => {
+                const cu = getCurrentUser();
+                currentChat.pinnedMessage = {
+                    id: msg.id,
+                    text: msg.text,
+                    senderId: msg.sender,
+                    senderName:
+                        msg.sender === 'you'
+                            ? cu?.name || 'Bạn'
+                            : msg.senderName || currentChat.name
+                };
+                if (cu) saveUserChats(cu, allChats);
+                renderPinnedMessage();
+                menu.style.display = 'none';
+            });
+
+            // Long-press (hold) to show actions menu — supports touch and mouse
+            let pressTimer = null;
+            const LONG_PRESS_MS = 600;
+            const startPress = (e) => {
+                // prevent context menu on long press
+                if (e && e.type === 'touchstart') e.preventDefault();
+                if (pressTimer) clearTimeout(pressTimer);
+                pressTimer = setTimeout(() => {
+                    menu.style.display = 'block';
+                }, LONG_PRESS_MS);
+            };
+            const cancelPress = () => {
+                if (pressTimer) clearTimeout(pressTimer);
+                pressTimer = null;
+            };
+            bubbleWrapper.addEventListener('touchstart', startPress, { passive: false });
+            bubbleWrapper.addEventListener('mousedown', startPress);
+            bubbleWrapper.addEventListener('touchend', cancelPress);
+            bubbleWrapper.addEventListener('touchcancel', cancelPress);
+            bubbleWrapper.addEventListener('mouseup', cancelPress);
+            bubbleWrapper.addEventListener('mouseleave', cancelPress);
+
+>>>>>>> 6b836a9 (them ghim tin nhan)
             bubbleWrapper.addEventListener('mouseenter', () => {
                 icon.style.display = 'block'; // hiện icon
                 if (icon.hideTimeout) clearTimeout(icon.hideTimeout);
@@ -1566,17 +1610,65 @@ function renderMessages(messages) {
             }
             msgDiv.appendChild(statusDiv);
         }
-
         const timeDiv = document.createElement('div');
         timeDiv.className = 'message-time';
         timeDiv.textContent = group[group.length - 1].time;
 
         msgDiv.appendChild(timeDiv);
-
         messagesContainer.appendChild(msgDiv);
     });
     // Scroll to bottom
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+//ham ghim tin nhan
+function renderPinnedMessage() {
+    const box = document.getElementById('pinnedMessageBox');
+    const content = document.getElementById('pinnedMessageContent');
+    if (!box || !content) return;
+    const pinned = currentChat?.pinnedMessage;
+    if (!pinned) {
+        box.style.display = 'none';
+        content.innerHTML = '';
+        return;
+    }
+    content.innerHTML = `
+        <span class="pin-icon">📌</span>
+        <b>${pinned.senderName}:</b>
+        ${pinned.text || '[Hình ảnh]'}
+    `;
+    box.style.display = 'block';
+}
+
+//ham popup ghim tin nhan
+function initPinnedMenu() {
+    const pinnedMenuIcon = document.getElementById('pinnedMenuIcon');
+    const pinnedMenu = document.getElementById('pinnedMenu');
+    const unpinMessage = document.getElementById('unpinMessage');
+
+    if (!pinnedMenuIcon || !pinnedMenu || !unpinMessage) return;
+
+    //mo menu popup
+    pinnedMenuIcon.addEventListener('click', (e) => {
+        e.stopPropagation();
+        pinnedMenu.style.display =
+            pinnedMenu.style.display === 'block' ? 'none' : 'block';
+    });
+
+    // chuc nang bo ghim tn
+    unpinMessage.addEventListener('click', () => {
+        if (!currentChat) return;
+        delete currentChat.pinnedMessage;
+        const cu = getCurrentUser();
+        if (cu) saveUserChats(cu, allChats);
+        renderPinnedMessage();
+        pinnedMenu.style.display = 'none';
+    });
+
+    // nhan ra ngoai dong popup
+    document.addEventListener('click', () => {
+        pinnedMenu.style.display = 'none';
+    });
 }
 
 //highlight mention
@@ -1661,7 +1753,7 @@ function sendMessage() {
     const msg = {
         id: Date.now(),
         sender: 'you',
-        text: text,
+        text: messageInput.value,
         time: now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
         date: now.toISOString().split("T")[0],
         fullTime: new Date().toISOString(),
@@ -2121,6 +2213,7 @@ function closeMention() {
     mentionBox.style.display = "none";
 }
 
+initPinnedMenu();
 
 // Start
 init();
@@ -2254,5 +2347,159 @@ const api = {
 
 // expose to console for quick testing
 window.api = api;
-
 console.log('API helpers loaded. Use window.api.connect(url) to connect.');
+<<<<<<< HEAD
+=======
+
+// ========== VOICE/VIDEO CALL FEATURE ==========
+let callTimer = null;
+let callDuration = 0;
+let currentCallType = null;
+
+function initCallButtons() {
+    const voiceCallBtn = document.getElementById('voiceCallBtn');
+    const videoCallBtn = document.getElementById('videoCallBtn');
+    
+    if (voiceCallBtn) {
+        voiceCallBtn.addEventListener('click', () => startCall('voice'));
+    }
+    
+    if (videoCallBtn) {
+        videoCallBtn.addEventListener('click', () => startCall('video'));
+    }
+    
+    const endCallBtn = document.getElementById('endCallBtn');
+    if (endCallBtn) {
+        endCallBtn.addEventListener('click', endCall);
+    }
+}
+
+function startCall(type) {
+    if (!currentChat) {
+        alert('Vui lòng chọn một cuộc trò chuyện để gọi');
+        return;
+    }
+    
+    currentCallType = type;
+    const callModal = document.getElementById('callModal');
+    const callType = document.getElementById('callType');
+    const callAvatar = document.getElementById('callAvatar');
+    const callName = document.getElementById('callName');
+    const callStatus = document.getElementById('callStatus');
+    const callTimerEl = document.getElementById('callTimer');
+    
+    // Set call info
+    callType.textContent = type === 'voice' ? 'Cuộc gọi thoại' : 'Cuộc gọi video';
+    callAvatar.src = currentChat.avatar;
+    callName.textContent = currentChat.name;
+    callStatus.textContent = 'Đang gọi...';
+    callStatus.style.display = 'block';
+    callTimerEl.style.display = 'none';
+    
+    // Show modal
+    callModal.style.display = 'flex';
+    
+    // Play ringtone sound (simulated)
+    console.log('📞 Calling:', currentChat.name, 'Type:', type);
+    
+    // Fake API call
+    if (fakeApiEnabled) {
+        console.log('📤 FAKE API: START_CALL', { to: currentChat.name, type });
+    }
+    
+    // Simulate answer after 2-3 seconds
+    setTimeout(() => {
+        answerCall();
+    }, 2500);
+}
+
+function answerCall() {
+    const callStatus = document.getElementById('callStatus');
+    const callTimerEl = document.getElementById('callTimer');
+    
+    callStatus.textContent = 'Đã kết nối';
+    callStatus.style.display = 'none';
+    callTimerEl.style.display = 'block';
+    
+    console.log('📞 Call answered');
+    
+    // Reset and start timer
+    callDuration = 0;
+    callTimerEl.textContent = '00:00';
+    
+    // Clear any existing timer first
+    if (callTimer) {
+        clearInterval(callTimer);
+        callTimer = null;
+    }
+    
+    // Start new timer
+    callTimer = setInterval(() => {
+        callDuration++;
+        const minutes = Math.floor(callDuration / 60);
+        const seconds = callDuration % 60;
+        callTimerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }, 1000);
+}
+
+function endCall() {
+    const callModal = document.getElementById('callModal');
+    callModal.style.display = 'none';
+    
+    // Stop timer first
+    if (callTimer) {
+        clearInterval(callTimer);
+        callTimer = null;
+    }
+    
+    const finalDuration = callDuration;
+    console.log('📞 Call ended. Duration:', finalDuration, 'seconds');
+    
+    // Fake API call
+    if (fakeApiEnabled) {
+        console.log('📤 FAKE API: END_CALL', { duration: finalDuration, type: currentCallType });
+    }
+    
+    // Add system message to chat
+    if (currentChat && finalDuration > 0) {
+        const minutes = Math.floor(finalDuration / 60);
+        const seconds = finalDuration % 60;
+        const timeStr = `${minutes}:${String(seconds).padStart(2, '0')}`;
+        const now = new Date();
+        
+        const callMsg = {
+            id: Date.now(),
+            sender: 'system',
+            text: `Cuộc gọi ${currentCallType === 'voice' ? 'thoại' : 'video'} - Thời gian: ${timeStr}`,
+            time: now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+            date: now.toLocaleDateString('vi-VN')
+        };
+        currentChat.messages.push(callMsg);
+        
+        // Update last message
+        currentChat.lastMessage = `Cuộc gọi ${currentCallType === 'voice' ? 'thoại' : 'video'}`;
+        currentChat.timestamp = 'Bây giờ';
+        
+        // Save and update UI
+        const cu = getCurrentUser();
+        if (cu) saveUserChats(cu, allChats);
+        renderMessages(currentChat.messages);
+        renderConversations(allChats);
+    }
+    // Reset
+    callDuration = 0;
+    currentCallType = null;
+}
+
+// Initialize call buttons when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    initCallButtons();
+});
+
+// Also initialize in case DOM is already loaded
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCallButtons);
+} else {
+    initCallButtons();
+}
+>>>>>>> 6b836a9 (them ghim tin nhan)

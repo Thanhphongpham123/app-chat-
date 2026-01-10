@@ -98,10 +98,29 @@
                         <button class="icon-btn">
                             <i class="fas fa-video"></i>
                         </button>
+<<<<<<< HEAD
                         <button class="icon-btn">
+=======
+                        <button id="infoBtn" class="icon-btn" title="Thông tin cuộc trò chuyện" onclick="openChangeAvatarModal()">
+>>>>>>> 6b836a9 (them ghim tin nhan)
                             <i class="fas fa-info"></i>
                         </button>
                     </div>
+                </div>
+
+                <div id="pinnedMessageBox" class="pinned-message" style="display:none;">
+                    <div class="pinned-header">
+                        <div class="pinned-title">
+                            Tin nhắn đã ghim
+                        </div>
+                        <!-- icon 3 chấm -->
+                        <div id="pinnedMenuIcon" class="pinned-menu-icon">⋯</div>
+                        <!-- popup nhỏ -->
+                        <div id="pinnedMenu" class="pinned-menu">
+                            <div id="unpinMessage">Bỏ ghim tin nhắn</div>
+                        </div>
+                    </div>
+                    <div id="pinnedMessageContent"></div>
                 </div>
 
                 <!-- Messages -->
