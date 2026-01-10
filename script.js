@@ -579,7 +579,14 @@ function renderConversations(chats) {
             renderConversations(allChats);
         });
 
-        div.addEventListener('click', () => openChat(chat));
+        div.addEventListener('click', () => {
+            openChat(chat);
+            // Nếu là nhóm, mở ngay panel thông tin sang tab 'members'
+            if (chat && chat.isGroup) {
+                // nhỏ delay để đảm bảo currentChat đã được cập nhật và UI render xong
+                setTimeout(() => openChangeAvatarModal('members'), 60);
+            }
+        });
         conversationsList.appendChild(div);
     });
 }
@@ -759,7 +766,7 @@ function setUserActive(chat) {
 
 
 // Open info panel (shows group avatar controls when current chat is a group)
-function openChangeAvatarModal() {
+function openChangeAvatarModal(defaultTab) {
     try {
         console.log('openChangeAvatarModal called', { currentChat });
         const currentUser = getCurrentUser();
@@ -886,7 +893,23 @@ function openChangeAvatarModal() {
 
             row.appendChild(left);
             row.appendChild(removeBtn);
-            membersList.appendChild(row);
+                membersList.appendChild(row);
+
+                // Khi click vào hàng thành viên, cuộn đến vị trí và làm nổi bật (trừ khi click vào nút Xóa/Rời)
+                row.addEventListener('click', (e) => {
+                    if (e.target && (e.target === removeBtn || e.target.closest('.members-remove'))) return;
+                    try {
+                        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        const prevBg = row.style.background;
+                        row.style.transition = 'background 0.35s ease';
+                        row.style.background = '#fff8d6';
+                        setTimeout(() => {
+                            row.style.background = prevBg || '';
+                        }, 1200);
+                    } catch (err) {
+                        console.warn('member row click handler error', err);
+                    }
+                });
         });
 
         updateMembersCount((currentChat.members || []).length);
@@ -1046,7 +1069,7 @@ function openChangeAvatarModal() {
             updateMembersCount('-');
         }
     }
-    selectTab('avatar');
+    selectTab(defaultTab || 'avatar');
 
     const closeBtn = document.getElementById('closeInfoPanel');
     const deleteBtn = document.getElementById('deleteGroupBtn');
