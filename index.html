@@ -77,11 +77,27 @@
                         <button class="icon-btn" id="videoCallBtn" title="Gọi video">
                             <i class="fas fa-video"></i>
                         </button>
-                        
+                        <button class="icon-btn" id="viewPinnedBtn" title="Xem tin nhắn đã ghim" style="display:none;">
+                            <i class="fas fa-thumbtack"></i>
+                        </button>
                         <button id="infoBtn" class="icon-btn" title="Thông tin cuộc trò chuyện" onclick="openChangeAvatarModal()">
                             <i class="fas fa-info"></i>
                         </button>
                     </div>
+                </div>
+
+                <!-- Pinned Messages Banner -->
+                <div id="pinnedBanner" class="pinned-banner" style="display:none;">
+                    <div class="pinned-icon">
+                        <i class="fas fa-thumbtack"></i>
+                    </div>
+                    <div class="pinned-content">
+                        <div class="pinned-label">Tin nhắn đã ghim</div>
+                        <div id="pinnedText" class="pinned-text"></div>
+                    </div>
+                    <button id="closePinnedBanner" class="pinned-close" title="Ẩn">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
 
                 <!-- Messages -->
@@ -239,6 +255,20 @@
                 <button id="endCallBtn" class="call-btn end" title="Kết thúc">
                     <i class="fas fa-phone-slash"></i>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pinned Messages Modal -->
+    <div id="pinnedModal" class="modal" style="display:none;">
+        <div class="modal-overlay"></div>
+        <div class="pinned-modal-card">
+            <div class="pinned-modal-header">
+                <h3><i class="fas fa-thumbtack" style="margin-right:8px;"></i>Tin nhắn đã ghim</h3>
+                <button id="closePinnedModal" class="icon-btn">×</button>
+            </div>
+            <div id="pinnedMessagesList" class="pinned-messages-list">
+                <!-- Danh sách tin nhắn đã ghim sẽ được render ở đây -->
             </div>
         </div>
     </div>

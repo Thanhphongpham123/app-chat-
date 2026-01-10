@@ -1020,7 +1020,12 @@ function renderMessages(messages) {
             // menu
             const menu = document.createElement('div');
             menu.className = 'message-actions-menu';
+            
+            // Kiểm tra xem tin nhắn đã được ghim chưa
+            const isPinned = currentChat.pinnedMessages && currentChat.pinnedMessages.some(p => p.id === msg.id);
+            
             menu.innerHTML = `
+                <div class="pin-msg">${isPinned ? 'Bỏ ghim' : 'Ghim tin nhắn'}</div>
                 <div class="copy-msg">Copy</div>
                 <div class="recall-msg">Thu hồi</div>
                 <div class="delete-msg">Xóa</div>
@@ -1039,6 +1044,10 @@ function renderMessages(messages) {
             });
 
             // các chức năng menu
+            menu.querySelector('.pin-msg').addEventListener('click', () => {
+                togglePinMessage(msg);
+                menu.style.display = 'none';
+            });
             menu.querySelector('.copy-msg').addEventListener('click', () => {
                 navigator.clipboard.writeText(msg.text);
                 menu.style.display = 'none';
@@ -1103,6 +1112,119 @@ function renderMessages(messages) {
 
     // Scroll to bottom
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    
+    // Cập nhật banner ghim
+    updatePinnedBanner();
+}
+
+// ========== PINNED MESSAGES FEATURE ==========
+function togglePinMessage(msg) {
+    if (!currentChat) return;
+    
+    // Khởi tạo mảng pinnedMessages nếu chưa có
+    if (!currentChat.pinnedMessages) {
+        currentChat.pinnedMessages = [];
+    }
+    
+    // Kiểm tra xem tin nhắn đã được ghim chưa
+    const pinnedIndex = currentChat.pinnedMessages.findIndex(p => p.id === msg.id);
+    
+    if (pinnedIndex > -1) {
+        // Bỏ ghim
+        currentChat.pinnedMessages.splice(pinnedIndex, 1);
+        console.log('📌 Unpinned message:', msg.text);
+    } else {
+        // Ghim tin nhắn - lưu thông tin cần thiết
+        const pinnedMsg = {
+            id: msg.id,
+            text: msg.text,
+            time: msg.time,
+            sender: msg.sender,
+            pinnedAt: new Date().toLocaleString('vi-VN')
+        };
+        currentChat.pinnedMessages.push(pinnedMsg);
+        console.log('📌 Pinned message:', msg.text);
+    }
+    
+    // Lưu vào localStorage
+    const currentUser = getCurrentUser();
+    if (currentUser) {
+        saveUserChats(currentUser, allChats);
+    }
+    
+    // Re-render messages và cập nhật banner
+    renderMessages(currentChat.messages);
+    updatePinnedBanner();
+}
+
+function updatePinnedBanner() {
+    const banner = document.getElementById('pinnedBanner');
+    const pinnedText = document.getElementById('pinnedText');
+    const viewPinnedBtn = document.getElementById('viewPinnedBtn');
+    
+    if (!currentChat || !currentChat.pinnedMessages || currentChat.pinnedMessages.length === 0) {
+        banner.style.display = 'none';
+        if (viewPinnedBtn) viewPinnedBtn.style.display = 'none';
+        return;
+    }
+    
+    // Hiển thị tin nhắn ghim gần nhất
+    const latestPinned = currentChat.pinnedMessages[currentChat.pinnedMessages.length - 1];
+    pinnedText.textContent = latestPinned.text.length > 50 
+        ? latestPinned.text.substring(0, 50) + '...' 
+        : latestPinned.text;
+    
+    banner.style.display = 'flex';
+    if (viewPinnedBtn) viewPinnedBtn.style.display = 'inline-flex';
+}
+
+function showPinnedMessagesModal() {
+    if (!currentChat || !currentChat.pinnedMessages || currentChat.pinnedMessages.length === 0) {
+        alert('Không có tin nhắn nào được ghim');
+        return;
+    }
+    
+    const modal = document.getElementById('pinnedModal');
+    const messagesList = document.getElementById('pinnedMessagesList');
+    
+    // Render danh sách tin nhắn đã ghim
+    messagesList.innerHTML = '';
+    
+    currentChat.pinnedMessages.forEach((msg, index) => {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'pinned-message-item';
+        msgDiv.innerHTML = `
+            <div class="pinned-msg-header">
+                <span class="pinned-msg-sender">${msg.sender === 'you' ? 'Bạn' : currentChat.name}</span>
+                <span class="pinned-msg-time">${msg.time}</span>
+            </div>
+            <div class="pinned-msg-text">${escapeHtml(msg.text)}</div>
+            <div class="pinned-msg-footer">
+                <span class="pinned-msg-date">Ghim lúc: ${msg.pinnedAt}</span>
+                <button class="unpin-btn" data-id="${msg.id}">Bỏ ghim</button>
+            </div>
+        `;
+        messagesList.appendChild(msgDiv);
+    });
+    
+    // Thêm event listener cho nút bỏ ghim
+    messagesList.querySelectorAll('.unpin-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const msgId = parseInt(e.target.getAttribute('data-id'));
+            const originalMsg = currentChat.messages.find(m => m.id === msgId);
+            if (originalMsg) {
+                togglePinMessage(originalMsg);
+                // Nếu không còn tin nhắn ghim nào, đóng modal
+                if (!currentChat.pinnedMessages || currentChat.pinnedMessages.length === 0) {
+                    modal.style.display = 'none';
+                } else {
+                    showPinnedMessagesModal(); // Refresh modal
+                }
+            }
+        });
+    });
+    
+    modal.style.display = 'flex';
 }
 
 function retryMessage(msg) {
@@ -1438,6 +1560,42 @@ function attachEvents() {
         infoBtn.addEventListener('click', (e) => {
             e.preventDefault();
             openChangeAvatarModal();
+        });
+    }
+    
+    // Nút xem tin nhắn đã ghim
+    const viewPinnedBtn = document.getElementById('viewPinnedBtn');
+    if (viewPinnedBtn) {
+        viewPinnedBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            showPinnedMessagesModal();
+        });
+    }
+    
+    // Đóng banner ghim
+    const closePinnedBanner = document.getElementById('closePinnedBanner');
+    if (closePinnedBanner) {
+        closePinnedBanner.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('pinnedBanner').style.display = 'none';
+        });
+    }
+    
+    // Đóng modal tin nhắn ghim
+    const closePinnedModal = document.getElementById('closePinnedModal');
+    if (closePinnedModal) {
+        closePinnedModal.addEventListener('click', () => {
+            document.getElementById('pinnedModal').style.display = 'none';
+        });
+    }
+    
+    // Click overlay để đóng modal
+    const pinnedModal = document.getElementById('pinnedModal');
+    if (pinnedModal) {
+        pinnedModal.addEventListener('click', (e) => {
+            if (e.target === pinnedModal || e.target.classList.contains('modal-overlay')) {
+                pinnedModal.style.display = 'none';
+            }
         });
     }
 
