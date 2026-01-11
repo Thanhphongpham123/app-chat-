@@ -9,7 +9,7 @@ const mockData = [
         online: true,
         unread: 1,
         messages: [
-            { id: 1, sender: 'them', text: 'Chào bạn!', time: '10:00' }
+            { id: 1, sender: 'them', text: 'Chào bạn!', time: '10:00', reactions: [] }
         ]
     },
     {
@@ -21,7 +21,7 @@ const mockData = [
         online: false,
         unread: 0,
         messages: [
-            { id: 1, sender: 'them', text: 'Hẹn gặp lại!', time: '09:30' }
+            { id: 1, sender: 'them', text: 'Hẹn gặp lại!', time: '09:30', reactions: [] }
         ]
     },
     {
@@ -33,7 +33,7 @@ const mockData = [
         online: true,
         unread: 0,
         messages: [
-            { id: 1, sender: 'them', text: 'OK nhé!', time: '09:00' }
+            { id: 1, sender: 'them', text: 'OK nhé!', time: '09:00', reactions: [] }
         ]
     }
 ];
@@ -1666,6 +1666,7 @@ function renderMessages(messages) {
             const menu = document.createElement('div');
             menu.className = 'message-actions-menu';
             menu.innerHTML = `
+                <div class="react-msg">Thả cảm xúc</div>
                 <div class="copy-msg">Copy</div>
                  <div class="pin-msg">Ghim tin nhắn</div>
                 <div class="recall-msg">Thu hồi</div>
@@ -1725,6 +1726,13 @@ function renderMessages(messages) {
                 menu.style.display = 'none';
             });
 
+            // xu ly click reaction
+            menu.querySelector('.react-msg').addEventListener('click', (e) => {
+                e.stopPropagation();
+                menu.style.display = 'none';
+                showReactionPicker(bubbleWrapper, msg, messages);
+            });
+
             // Long-press (hold) to show actions menu — supports touch and mouse
             let pressTimer = null;
             const LONG_PRESS_MS = 600;
@@ -1746,6 +1754,80 @@ function renderMessages(messages) {
             bubbleWrapper.addEventListener('touchcancel', cancelPress);
             bubbleWrapper.addEventListener('mouseup', cancelPress);
             bubbleWrapper.addEventListener('mouseleave', cancelPress);
+
+            // hiển thị reactions
+            if (msg.reactions && msg.reactions.length > 0) {
+                const reactionsDiv = document.createElement('div');
+                reactionsDiv.className = 'message-reactions';
+                reactionsDiv.style.cssText = 'display:flex; gap:4px; flex-wrap:wrap; margin-top:4px; font-size:14px;';
+                
+                // nhóm reactions theo emoji
+                const reactionCounts = {};
+                msg.reactions.forEach(r => {
+                    if (!reactionCounts[r.emoji]) {
+                        reactionCounts[r.emoji] = { count: 0, users: [] };
+                    }
+                    reactionCounts[r.emoji].count++;
+                    reactionCounts[r.emoji].users.push(r.user);
+                });
+                
+                // hiển thị từng emoji với count
+                Object.keys(reactionCounts).forEach(emoji => {
+                    const reactionItem = document.createElement('span');
+                    const cu = getCurrentUser();
+                    const hasReacted = reactionCounts[emoji].users.includes(cu);
+                    reactionItem.className = hasReacted ? 'reaction-item active' : 'reaction-item';
+                    reactionItem.style.cssText = `
+                        padding:2px 6px;
+                        border-radius:12px;
+                        background:${hasReacted ? '#e7f3ff' : '#f0f0f0'};
+                        border:${hasReacted ? '1px solid #0a66c2' : '1px solid transparent'};
+                        cursor:pointer;
+                        display:flex;
+                        align-items:center;
+                        gap:2px;
+                        transition:all 0.2s;
+                    `;
+                    reactionItem.innerHTML = `${emoji} ${reactionCounts[emoji].count}`;
+                    reactionItem.title = reactionCounts[emoji].users.join(', ');
+                    
+                    // click để thêm/xóa reaction
+                    reactionItem.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        toggleReaction(msg, emoji, messages);
+                    });
+                    
+                    reactionsDiv.appendChild(reactionItem);
+                });
+                
+                // nút thêm reaction
+                const addReactionBtn = document.createElement('span');
+                addReactionBtn.className = 'add-reaction-btn';
+                addReactionBtn.style.cssText = `
+                    padding:2px 6px;
+                    border-radius:12px;
+                    background:#f0f0f0;
+                    cursor:pointer;
+                    font-size:16px;
+                    display:flex;
+                    align-items:center;
+                    transition:all 0.2s;
+                `;
+                addReactionBtn.textContent = '+';
+                addReactionBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showReactionPicker(bubbleWrapper, msg, messages);
+                });
+                addReactionBtn.addEventListener('mouseenter', () => {
+                    addReactionBtn.style.background = '#e4e6eb';
+                });
+                addReactionBtn.addEventListener('mouseleave', () => {
+                    addReactionBtn.style.background = '#f0f0f0';
+                });
+                
+                reactionsDiv.appendChild(addReactionBtn);
+                bubbleWrapper.appendChild(reactionsDiv);
+            }
 
             bubbleWrapper.addEventListener('mouseenter', () => {
                 icon.style.display = 'block'; // hiện icon
@@ -2741,4 +2823,115 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initCallButtons);
 } else {
     initCallButtons();
+}
+
+// ===== REACTION FUNCTIONS =====
+function showReactionPicker(parentElement, msg, messages) {
+    // Xóa picker cũ nếu có
+    const oldPicker = document.querySelector('.reaction-picker');
+    if (oldPicker) oldPicker.remove();
+    
+    const picker = document.createElement('div');
+    picker.className = 'reaction-picker';
+    picker.style.cssText = `
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: white;
+        border: 1px solid #e5e5e5;
+        border-radius: 24px;
+        padding: 8px 12px;
+        display: flex;
+        gap: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 1000;
+        margin-bottom: 8px;
+    `;
+    
+    const reactions = ['👍', '❤️', '😂', '😮', '😢', '😡', '🎉'];
+    
+    reactions.forEach(emoji => {
+        const emojiBtn = document.createElement('span');
+        emojiBtn.textContent = emoji;
+        emojiBtn.style.cssText = `
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 50%;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        
+        emojiBtn.addEventListener('mouseenter', () => {
+            emojiBtn.style.transform = 'scale(1.3)';
+            emojiBtn.style.background = '#f0f0f0';
+        });
+        
+        emojiBtn.addEventListener('mouseleave', () => {
+            emojiBtn.style.transform = 'scale(1)';
+            emojiBtn.style.background = 'transparent';
+        });
+        
+        emojiBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleReaction(msg, emoji, messages);
+            picker.remove();
+        });
+        
+        picker.appendChild(emojiBtn);
+    });
+    
+    parentElement.appendChild(picker);
+    
+    // Tự động đóng khi click ra ngoài
+    setTimeout(() => {
+        const closeHandler = (e) => {
+            if (!picker.contains(e.target)) {
+                picker.remove();
+                document.removeEventListener('click', closeHandler);
+            }
+        };
+        document.addEventListener('click', closeHandler);
+    }, 100);
+}
+
+function toggleReaction(msg, emoji, messages) {
+    const cu = getCurrentUser();
+    if (!cu) return;
+    
+    // Khởi tạo reactions array nếu chưa có
+    if (!msg.reactions) {
+        msg.reactions = [];
+    }
+    
+    // Kiểm tra xem user đã react emoji này chưa
+    const existingIndex = msg.reactions.findIndex(r => r.user === cu && r.emoji === emoji);
+    
+    if (existingIndex > -1) {
+        // Đã react rồi thì xóa
+        msg.reactions.splice(existingIndex, 1);
+    } else {
+        // Chưa react thì thêm mới
+        msg.reactions.push({
+            user: cu,
+            emoji: emoji,
+            timestamp: new Date().toISOString()
+        });
+    }
+    
+    // Lưu lại và render lại
+    saveUserChats(cu, allChats);
+    renderMessages(messages);
+    
+    // Fake API call
+    if (fakeApiEnabled) {
+        console.log('📤 FAKE API: TOGGLE_REACTION', { 
+            messageId: msg.id, 
+            emoji, 
+            action: existingIndex > -1 ? 'remove' : 'add' 
+        });
+    }
 }
