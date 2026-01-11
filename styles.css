@@ -993,6 +993,7 @@ body.dark .system-message div {
     background-color: #f0f0f0;
 }
 
+<<<<<<< HEAD
 /* Hiện icon khi hover vào bubble */
 .message-bubble-wrapper:hover .message-actions-icon {
     display: block;
@@ -1002,6 +1003,8 @@ body.dark .system-message div {
 =======
 >>>>>>> Stashed changes
 
+=======
+>>>>>>> 0d20782 (scroll toi va highlight tin nhan da ghim)
 .message-bubble {
     display: inline-block;
     max-width: 100%;
@@ -1012,6 +1015,50 @@ body.dark .system-message div {
     line-height: 1.4;
     position: relative;
 }
+
+/* Hiện icon khi hover vào bubble */
+.message-bubble-wrapper:hover .message-actions-icon {
+    display: block;
+}
+
+.message-bubble-wrapper {
+    border-radius: 20px;
+    position: relative;
+}
+
+.message-bubble-wrapper::after {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border: 2px solid #0a66c2;
+    border-radius: 20px;
+    opacity: 0;
+    transform: scale(1);
+    transition:
+            opacity 0.25s ease,
+            transform 0.35s ease;
+    pointer-events: none;
+}
+
+/* highlight tin nhan khi duoc scroll toi */
+.message-bubble-wrapper.highlight::after {
+    opacity: 1;
+    transform: scale(1.05);
+}
+
+.message-bubble {
+    transition:
+            transform 0.35s ease,
+            box-shadow 0.35s ease;
+}
+
+/* khi highlight */
+.message-bubble-wrapper.highlight .message-bubble {
+    transform: scale(1.05);
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18);
+    z-index: 5;
+}
+
 
 /* icon ... ban than */
 .message-group.sent .message-actions-icon {
@@ -1083,10 +1130,6 @@ body.dark .system-message div {
 
 .message-actions-menu div:hover {
     background-color: #f0f0f0;
-}
-
-.message-bubble-wrapper:hover .message-actions-icon {
-    display: block;
 }
 
 /* =======================

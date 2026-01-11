@@ -1422,13 +1422,13 @@ function renderMessages(messages) {
             systemDiv.style.color = '#65676b';
             systemDiv.style.fontSize = '12px';
             systemDiv.style.fontStyle = 'italic';
-            
+
             group.forEach(msg => {
                 const msgText = document.createElement('div');
                 msgText.textContent = msg.text;
                 systemDiv.appendChild(msgText);
             });
-            
+
             messagesContainer.appendChild(systemDiv);
             return;
         }
@@ -1455,6 +1455,7 @@ function renderMessages(messages) {
             const bubbleWrapper = document.createElement('div');
             bubbleWrapper.className = 'message-bubble-wrapper';
             bubbleWrapper.style.position = 'relative';
+            bubbleWrapper.dataset.messageId = msg.id;
 
             const bubble = document.createElement('div');
             bubble.className = 'message-bubble';
@@ -1633,9 +1634,11 @@ function renderPinnedMessage() {
         return;
     }
     content.innerHTML = `
-        <span class="pin-icon">📌</span>
-        <b>${pinned.senderName}:</b>
-        ${pinned.text || '[Hình ảnh]'}
+        <div class="pinned-click" data-id="${pinned.id}">
+            <span class="pin-icon">📌</span>
+            <b>${pinned.senderName}:</b>
+            ${pinned.text || '[Hình ảnh]'}
+        </div>
     `;
     box.style.display = 'block';
 }
@@ -1668,6 +1671,30 @@ function initPinnedMenu() {
     // nhan ra ngoai dong popup
     document.addEventListener('click', () => {
         pinnedMenu.style.display = 'none';
+    });
+}
+
+//ham su kien khi nhan vao tin nhan da ghim se scroll den tin nhan
+function initPinnedScroll() {
+    document.addEventListener('click', (e) => {
+        const pinned = e.target.closest('.pinned-click');
+        if (!pinned) return;
+        const messageId = pinned.dataset.id;
+        if (!messageId) return;
+        const targetMsg = document.querySelector(
+            `.message-bubble-wrapper[data-message-id="${messageId}"]`
+        );
+        if (!targetMsg) return;
+        // scroll tin nhắn
+        targetMsg.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+        });
+        // highlight khung
+        targetMsg.classList.add('highlight');
+        setTimeout(() => {
+            targetMsg.classList.remove('highlight');
+        }, 2000);
     });
 }
 
@@ -2213,6 +2240,9 @@ function closeMention() {
     mentionBox.style.display = "none";
 }
 
+document.addEventListener('DOMContentLoaded', () => {
+    initPinnedScroll();
+});
 initPinnedMenu();
 
 // Start
