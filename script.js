@@ -46,6 +46,8 @@ let mentionStartIndex = -1;
 let mentionSearch = "";
 let conversationFilter = "all";
 let activeCategoryFilters = new Set();
+let replyingMessage = null;
+let hideActionsTimer = null;
 
 // DOM Elements
 const conversationsList = document.getElementById('conversationsList');
@@ -1631,6 +1633,29 @@ function renderMessages(messages) {
 
             const bubble = document.createElement('div');
             bubble.className = 'message-bubble';
+
+            // reply
+            if (msg.replyTo) {
+                const replyPreview = document.createElement('div');
+                replyPreview.className = 'reply-preview';
+
+                const replySender = document.createElement('div');
+                replySender.style.fontWeight = '600';
+                replySender.style.fontSize = '12px';
+                replySender.textContent =
+                    msg.replyTo.senderName || 'Bạn';
+
+                const replyText = document.createElement('div');
+                replyText.style.whiteSpace = 'nowrap';
+                replyText.style.overflow = 'hidden';
+                replyText.style.textOverflow = 'ellipsis';
+                replyText.textContent = msg.replyTo.text || '[Hình ảnh]';
+
+                replyPreview.appendChild(replySender);
+                replyPreview.appendChild(replyText);
+                bubble.appendChild(replyPreview);
+            }
+
             // support image messages
             if (msg.image) {
                 const imgEl = document.createElement('img');
@@ -1647,20 +1672,27 @@ function renderMessages(messages) {
                     bubble.appendChild(caption);
                 }
             } else {
-                bubble.innerHTML = highlightMentions(msg.text || '');
+                const textDiv = document.createElement('div');
+                textDiv.innerHTML = highlightMentions(msg.text || '');
+                bubble.appendChild(textDiv);
             }
 
-            // icon mneu 3 chấm
-            const icon = document.createElement('div');
-            icon.className = 'message-actions-icon';
-            icon.textContent = '⋯';
-            if (group[0].sender === 'you') {
-                icon.style.right = 'auto';
-            } else {
-                icon.style.left = 'auto';
-            }
-            bubbleWrapper.appendChild(icon);
+            // ===== actions (reply + menu) =====
+            const actions = document.createElement('div');
+            actions.className = 'message-actions';
 
+            // icon trả lời
+            const replyIcon = document.createElement('div');
+            replyIcon.className = 'message-reply-icon';
+            replyIcon.textContent = '❝';
+
+            // icon menu 3 chấm
+            const menuIcon = document.createElement('div');
+            menuIcon.className = 'message-actions-icon';
+            menuIcon.textContent = '⋯';
+
+            actions.appendChild(replyIcon);
+            actions.appendChild(menuIcon);
 
             // menu
             const menu = document.createElement('div');
@@ -1672,17 +1704,15 @@ function renderMessages(messages) {
                 <div class="recall-msg">Thu hồi</div>
                 <div class="delete-msg">Xóa</div>
             `;
-            bubbleWrapper.appendChild(menu);
 
-            // click icon hiện menu
-            icon.addEventListener('click', (e) => {
+            actions.addEventListener('click', (e) => {
                 e.stopPropagation();
-                menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
             });
 
-            // click ra ngoài đóng menu
-            document.addEventListener('click', () => {
-                menu.style.display = 'none';
+            // click icon hiện menu
+            menuIcon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
             });
 
             // các chức năng menu
@@ -1732,12 +1762,32 @@ function renderMessages(messages) {
                 menu.style.display = 'none';
                 showReactionPicker(bubbleWrapper, msg, messages);
             });
+            
+            //xu ly sk reply icon
+            replyIcon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                replyingMessage = {
+                    id: msg.id,
+                    text: msg.text,
+                    sender: msg.sender,
+                    senderName:
+                        msg.sender === 'you'
+                            ? 'Bạn'
+                            : (msg.senderName || currentChat.name)
+                };
+                document.getElementById('replySender').textContent =
+                    msg.sender === 'you'
+                        ? 'Bạn'
+                        : (msg.senderName || currentChat.name);
+                document.getElementById('replyText').textContent =
+                    msg.text || '[Hình ảnh]';
+                document.getElementById('replyBox').style.display = 'flex';
+            });
 
             // Long-press (hold) to show actions menu — supports touch and mouse
             let pressTimer = null;
             const LONG_PRESS_MS = 600;
             const startPress = (e) => {
-                // prevent context menu on long press
                 if (e && e.type === 'touchstart') e.preventDefault();
                 if (pressTimer) clearTimeout(pressTimer);
                 pressTimer = setTimeout(() => {
@@ -1830,14 +1880,27 @@ function renderMessages(messages) {
             }
 
             bubbleWrapper.addEventListener('mouseenter', () => {
-                icon.style.display = 'block'; // hiện icon
-                if (icon.hideTimeout) clearTimeout(icon.hideTimeout);
-                icon.hideTimeout = setTimeout(() => {
-                    icon.style.display = 'none'; // 2 giây sau ẩn
-                }, 800);
+                actions.style.display = 'flex';
+                if (hideActionsTimer) {
+                    clearTimeout(hideActionsTimer);
+                    hideActionsTimer = null;
+                }
+            });
+            actions.addEventListener('mouseleave', () => {
+                hideActionsTimer = setTimeout(() => {
+                    actions.style.display = 'none';
+                }, 1000);
+            });
+            actions.addEventListener('mouseenter', () => {
+                if (hideActionsTimer) {
+                    clearTimeout(hideActionsTimer);
+                    hideActionsTimer = null;
+                }
             });
 
             bubbleWrapper.appendChild(bubble);
+            bubbleWrapper.appendChild(actions);
+            bubbleWrapper.appendChild(menu);
             msgDiv.appendChild(bubbleWrapper);
         });
 
@@ -1876,6 +1939,18 @@ function renderMessages(messages) {
     // Scroll to bottom
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
+
+document.addEventListener('click', () => {
+    document.querySelectorAll('.message-actions-menu')
+        .forEach(m => m.style.display = 'none');
+});
+
+// xu ly su kien tat khung reply
+const closeReplyBtn = document.getElementById('closeReply');
+closeReplyBtn.addEventListener('click', () => {
+    replyingMessage = null;
+    document.getElementById('replyBox').style.display = 'none';
+});
 
 //ham ghim tin nhan
 function renderPinnedMessage() {
@@ -2041,7 +2116,15 @@ function sendMessage() {
         date: now.toISOString().split("T")[0],
         fullTime: new Date().toISOString(),
         status: 'sending', // trạng thái mới
-        isGroup: currentChat.type === 'group'
+        isGroup: currentChat.type === 'group',
+        replyTo: replyingMessage
+            ? {
+                id: replyingMessage.id,
+                senderId: replyingMessage.sender,
+                senderName: replyingMessage.senderName,
+                text: replyingMessage.text
+            }
+            : null
     };
 
     //xu ly tag trong group
@@ -2052,6 +2135,10 @@ function sendMessage() {
     }
 
     currentChat.messages.push(msg);
+
+    replyingMessage = null;
+    const replyBox = document.getElementById('replyBox');
+    if (replyBox) replyBox.style.display = 'none';
 
     currentChat.lastMessage = text;
     currentChat.timestamp = 'Bây giờ';
