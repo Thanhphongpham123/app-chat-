@@ -165,6 +165,7 @@ const AUTH_CURRENT_KEY = 'appChat_currentUser';
 const AUTH_RELOGIN_CODE_KEY = 'appChat_reloginCode';
 const CHATS_KEY_PREFIX = 'appChat_chats_';
 const GROUP_NOTIF_KEY = 'appChat_groupNotifications';
+const SHOW_HIDDEN_KEY = 'appChat_showHiddenChats';
 
 function isGroupNotificationEnabled() {
     const v = localStorage.getItem(GROUP_NOTIF_KEY);
@@ -175,6 +176,16 @@ function isGroupNotificationEnabled() {
 
 function setGroupNotificationEnabled(enabled) {
     localStorage.setItem(GROUP_NOTIF_KEY, enabled ? '1' : '0');
+}
+
+function isShowHiddenChats() {
+    const v = localStorage.getItem(SHOW_HIDDEN_KEY);
+    if (v === null) return false;
+    return v === '1';
+}
+
+function setShowHiddenChats(enabled) {
+    localStorage.setItem(SHOW_HIDDEN_KEY, enabled ? '1' : '0');
 }
 
 // ===== FAKE API LAYER =====
@@ -675,7 +686,7 @@ function renderConversations(chats) {
                         <span class="name-text">${chat.name}</span>
                         ${chat.unread > 0 ? `<span class="badge-unread">${chat.unread}</span>` : ''}
                     </span>
-                    <span class="conversation-menu-icon" style="display:none; cursor:pointer;">⋯</span>
+                    <span class="conversation-time">${chat.timestamp ? formatTimestamp(chat.timestamp) : ''}</span>
                 </div>
                 <div class="conversation-meta">
                     ${category ? `
@@ -689,20 +700,19 @@ function renderConversations(chats) {
             ${chat.online ? '<div class="online-badge"></div>' : ''}
         `;
 
-        // tạo menu popup
+        // Tạo context menu cho right-click trên avatar
         const menu = document.createElement('div');
-        menu.className = 'conv-menu';
+        menu.className = 'context-menu';
         menu.style.cssText = `
             display:none;
-            position:absolute;
-            right:10px;
-            top:35px;
+            position:fixed;
             background:white;
             border:1px solid #ddd;
-            border-radius:6px;
-            padding:6px 10px;
-            cursor:pointer;
-            z-index:10;
+            border-radius:8px;
+            padding:4px 0;
+            box-shadow:0 4px 12px rgba(0,0,0,0.15);
+            z-index:9999;
+            min-width:180px;
         `;
         menu.innerHTML = `
             <div class="conv-menu-item delete">Xóa hội thoại</div>
@@ -724,8 +734,10 @@ function renderConversations(chats) {
             menuIcon.style.display = 'none';
         });
 
-        // click icon mở menu
-        menuIcon.addEventListener('click', (e) => {
+        // Right-click trên avatar để mở context menu
+        const avatar = div.querySelector('.conversation-avatar');
+        avatar.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
             e.stopPropagation();
             menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
         });
@@ -747,6 +759,31 @@ function renderConversations(chats) {
                 renderConversations(allChats);
                 return;
             }
+            
+            // Restore messages
+            else if (target.classList.contains('restore-messages')) {
+                e.stopPropagation();
+                
+                if (!chat.hiddenMessages || chat.hiddenMessages.length === 0) {
+                    menu.style.display = 'none';
+                    return;
+                }
+                
+                if (!confirm(`Khôi phục tin nhắn với ${chat.name}?`)) {
+                    menu.style.display = 'none';
+                    return;
+                }
+                
+                // Khôi phục từ backup
+                chat.messages = [...chat.hiddenMessages];
+                chat.hiddenMessages = [];
+                
+                // Cập nhật lastMessage từ tin nhắn cuối
+                if (chat.messages.length > 0) {
+                    const lastMsg = chat.messages[chat.messages.length - 1];
+                    chat.lastMessage = lastMsg.text || lastMsg.image || 'Tin nhắn';
+                }
+                chat.timestamp = 'Bây giờ';
 
             // mo popup 2 phan loaii
             if (e.target.closest('.classify')) {
@@ -759,7 +796,14 @@ function renderConversations(chats) {
             }
         });
 
-        div.addEventListener('click', () => openChat(chat));
+        div.addEventListener('click', () => {
+            openChat(chat);
+            // Nếu là nhóm, mở ngay panel thông tin sang tab 'members'
+            if (chat && chat.isGroup) {
+                // nhỏ delay để đảm bảo currentChat đã được cập nhật và UI render xong
+                setTimeout(() => openChangeAvatarModal('members'), 60);
+            }
+        });
         conversationsList.appendChild(div);
     });
 }
@@ -940,7 +984,7 @@ function setUserActive(chat) {
 
 
 // Open info panel (shows group avatar controls when current chat is a group)
-function openChangeAvatarModal() {
+function openChangeAvatarModal(defaultTab) {
     try {
         console.log('openChangeAvatarModal called', { currentChat });
         const currentUser = getCurrentUser();
@@ -1067,7 +1111,23 @@ function openChangeAvatarModal() {
 
             row.appendChild(left);
             row.appendChild(removeBtn);
-            membersList.appendChild(row);
+                membersList.appendChild(row);
+
+                // Khi click vào hàng thành viên, cuộn đến vị trí và làm nổi bật (trừ khi click vào nút Xóa/Rời)
+                row.addEventListener('click', (e) => {
+                    if (e.target && (e.target === removeBtn || e.target.closest('.members-remove'))) return;
+                    try {
+                        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        const prevBg = row.style.background;
+                        row.style.transition = 'background 0.35s ease';
+                        row.style.background = '#fff8d6';
+                        setTimeout(() => {
+                            row.style.background = prevBg || '';
+                        }, 1200);
+                    } catch (err) {
+                        console.warn('member row click handler error', err);
+                    }
+                });
         });
 
         updateMembersCount((currentChat.members || []).length);
@@ -1227,7 +1287,7 @@ function openChangeAvatarModal() {
             updateMembersCount('-');
         }
     }
-    selectTab('avatar');
+    selectTab(defaultTab || 'avatar');
 
     const closeBtn = document.getElementById('closeInfoPanel');
     const deleteBtn = document.getElementById('deleteGroupBtn');
