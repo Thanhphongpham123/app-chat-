@@ -17,7 +17,7 @@
                     <h1>Chats</h1>
                     <div class="user-area" id="userArea">
                         <span id="currentUserDisplay" class="current-user"></span>
-                        <button id="logoutBtn" class="icon-btn" style="display:none;">Đăng xuất</button>
+                        <button id="logoutBtn" class="icon-btn" style="display:none;" title="Đăng xuất"><i class="fas fa-right-from-bracket"></i></button>
                     </div>
                 <div class="header-actions">
                     <button class="icon-btn" title="Cuộc trò chuyện mới">
@@ -27,7 +27,7 @@
                         <i class="fas fa-users"></i>
                     </button>
                     <button class="icon-btn" title="Cài đặt">
-                        <i class="fas fa-ellipsis-h"></i>
+                        <i class="fas fa-cog"></i>
                     </button>
                 </div>
             </div>
@@ -38,10 +38,28 @@
                 <input type="text" id="searchInput" placeholder="Tìm kiếm Messenger">
             </div>
 
+            <!-- Filter Tabs -->
+            <div class="chat-filter">
+                <div class="filter-left">
+                    <button id="filterAll" class="filter-btn active">Tất cả</button>
+                    <button id="filterUnread" class="filter-btn">Chưa đọc</button>
+                    <button id="filterCategoryBtn" class="filter-btn">Phân loại ▾</button>
+                </div>
+
+                <!-- dấu 3 chấm -->
+                <div id="filterMenuIcon" class="filter-menu-icon">⋯</div>
+
+                <!-- popup menu -->
+                <div id="filterPopupMenu" class="filter-popup">
+                    <div id="markAllRead" class="filter-popup-item">Đánh dấu tất cả đã đọc</div>
+                </div>
+            </div>
+
             <!-- Conversations -->
             <div class="conversations" id="conversationsList">
                 <!-- Loaded by JS -->
             </div>
+            
             <div style="padding:8px 12px; font-size:13px; color:#333; display:flex; align-items:center; gap:8px">
                 <label style="display:flex; align-items:center; gap:8px; cursor:pointer"><input id="groupNotifToggle" type="checkbox"> Thông báo nhóm</label>
             </div>
@@ -78,11 +96,25 @@
                         <button class="icon-btn" id="videoCallBtn" title="Gọi video">
                             <i class="fas fa-video"></i>
                         </button>
-                        
                         <button id="infoBtn" class="icon-btn" title="Thông tin cuộc trò chuyện" onclick="openChangeAvatarModal()">
                             <i class="fas fa-info"></i>
                         </button>
                     </div>
+                </div>
+
+                <div id="pinnedMessageBox" class="pinned-message" style="display:none;">
+                    <div class="pinned-header">
+                        <div class="pinned-title">
+                            Tin nhắn đã ghim
+                        </div>
+                        <!-- icon 3 chấm -->
+                        <div id="pinnedMenuIcon" class="pinned-menu-icon">⋯</div>
+                        <!-- popup nhỏ -->
+                        <div id="pinnedMenu" class="pinned-menu">
+                            <div id="unpinMessage">Bỏ ghim tin nhắn</div>
+                        </div>
+                    </div>
+                    <div id="pinnedMessageContent"></div>
                 </div>
 
                 <!-- Messages -->
@@ -92,6 +124,19 @@
 
                 <!-- Typing indicator -->
                 <div id="typingStatus" class="typing-status"></div>
+
+                <!-- Reply box -->
+                <div id="replyBox" class="reply-box" style="display:none;">
+                    <div class="reply-header">
+                        <span class="reply-quote">❝</span>
+                        <span class="reply-title">Trả lời</span>
+                        <span class="reply-close" id="closeReply">✕</span>
+                    </div>
+                    <div class="reply-content">
+                        <div id="replySender" class="reply-sender"></div>
+                        <div id="replyText" class="reply-text"></div>
+                    </div>
+                </div>
 
                 <!-- Input Area -->
                 <div class="message-input-area">
@@ -261,6 +306,15 @@
             </div>
         </div>
     </div>
+
+    <div id="categoryFilterPopup" class="filter-popup filter-category-popup" style="display:none;">
+        <div class="filter-popup-title">Theo thẻ phân loại</div>
+
+        <div class="filter-category-list">
+            <!-- render bằng JS -->
+        </div>
+    </div>
+
 
     <script src="script.js"></script>
     <script>

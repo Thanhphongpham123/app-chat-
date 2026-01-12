@@ -9,7 +9,7 @@ const mockData = [
         online: true,
         unread: 1,
         messages: [
-            { id: 1, sender: 'them', text: 'Chào bạn!', time: '10:00' }
+            { id: 1, sender: 'them', text: 'Chào bạn!', time: '10:00', reactions: [] }
         ]
     },
     {
@@ -21,7 +21,7 @@ const mockData = [
         online: false,
         unread: 0,
         messages: [
-            { id: 1, sender: 'them', text: 'Hẹn gặp lại!', time: '09:30' }
+            { id: 1, sender: 'them', text: 'Hẹn gặp lại!', time: '09:30', reactions: [] }
         ]
     },
     {
@@ -33,7 +33,7 @@ const mockData = [
         online: true,
         unread: 0,
         messages: [
-            { id: 1, sender: 'them', text: 'OK nhé!', time: '09:00' }
+            { id: 1, sender: 'them', text: 'OK nhé!', time: '09:00', reactions: [] }
         ]
     }
 ];
@@ -42,6 +42,12 @@ let currentChat = null;
 let allChats = [];
 const inactiveTimers = {};
 let typingTimer = null;
+let mentionStartIndex = -1;
+let mentionSearch = "";
+let conversationFilter = "all";
+let activeCategoryFilters = new Set();
+let replyingMessage = null;
+let hideActionsTimer = null;
 
 // DOM Elements
 const conversationsList = document.getElementById('conversationsList');
@@ -54,6 +60,41 @@ const searchInput = document.getElementById('searchInput');
 const chatName = document.getElementById('chatName');
 const chatAvatar = document.getElementById('chatAvatar');
 const chatStatus = document.getElementById('chatStatus');
+const filterAllBtn = document.getElementById("filterAll");
+const filterUnreadBtn = document.getElementById("filterUnread");
+const filterMenuIcon = document.getElementById("filterMenuIcon");
+const filterPopupMenu = document.getElementById("filterPopupMenu");
+const markAllRead = document.getElementById("markAllRead");
+const filterCategoryBtn = document.getElementById('filterCategoryBtn');
+const categoryFilterPopup = document.getElementById('categoryFilterPopup');
+
+const CHAT_CATEGORIES = [
+    { key: 'gia-dinh', label: 'Gia đình', color: '#e53935' },
+    { key: 'khach-hang', label: 'Khách hàng', color: '#1e88e5' },
+    { key: 'cong-viec', label: 'Công việc', color: '#43a047' },
+    { key: 'ban-be', label: 'Bạn bè', color: '#fb8c00' },
+    { key: 'dong-nghiep', label: 'Đồng nghiệp', color: '#8e24aa' }
+];
+
+//kh filter
+filterAllBtn.onclick = () => {
+    conversationFilter = "all";
+    filterAllBtn.classList.add("active");
+    filterUnreadBtn.classList.remove("active");
+    renderConversations(allChats);
+};
+
+filterUnreadBtn.onclick = () => {
+    conversationFilter = "unread";
+    filterUnreadBtn.classList.add("active");
+    filterAllBtn.classList.remove("active");
+    renderConversations(allChats);
+};
+
+// mention box
+let mentionBox = document.createElement("div");
+mentionBox.className = "mention-box";
+document.body.appendChild(mentionBox);
 
 // Initialize
 function init() {
@@ -306,6 +347,7 @@ function generateInitialChats(username) {
             online: index === 0, // User đầu tiên online
             unread: 0,
             lastActive: Date.now(),
+            category: null,
             messages: []
         }));
 
@@ -493,27 +535,166 @@ function wireAuthUI() {
     });
 }
 
+//danh dau da doc
+function markAllAsRead() {
+    allChats.forEach(c => c.unread = 0);
+    const cu = getCurrentUser?.();
+    if (cu) saveUserChats(cu, allChats);
+    renderConversations(allChats);
+}
+
+// mo popup
+filterMenuIcon.onclick = (e) => {
+    e.stopPropagation();
+    filterPopupMenu.style.display =
+        filterPopupMenu.style.display === "block" ? "none" : "block";
+};
+
+//khi nhan ra ngoai la dong
+document.addEventListener("click", () => {
+    filterPopupMenu.style.display = "none";
+});
+
+markAllRead.onclick = (e) => {
+    e.stopPropagation();
+    markAllAsRead();
+    filterPopupMenu.style.display = "none";
+};
+
+//render popup loc phan loai
+function renderCategoryFilterPopup() {
+    const list = categoryFilterPopup.querySelector('.filter-category-list');
+    list.innerHTML = CHAT_CATEGORIES.map(c => `
+        <label class="filter-category-item">
+            <input type="checkbox"
+                   value="${c.key}"
+                   ${activeCategoryFilters.has(c.key) ? 'checked' : ''}>
+            <span class="color-box" style="background:${c.color}"></span>
+            ${c.label}
+        </label>
+    `).join('');
+}
+
+//xu ly su kien loc phan laoi
+filterCategoryBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    renderCategoryFilterPopup();
+    const rect = filterCategoryBtn.getBoundingClientRect();
+    categoryFilterPopup.style.top = rect.bottom + 6 + 'px';
+    categoryFilterPopup.style.left = rect.left + 'px';
+    categoryFilterPopup.style.display = 'block';
+});
+
+//xu ly su kien tick de loc phan loai
+categoryFilterPopup.addEventListener('change', (e) => {
+    const checkbox = e.target;
+    if (checkbox.tagName !== 'INPUT') return;
+    const key = checkbox.value;
+    if (checkbox.checked) {
+        activeCategoryFilters.add(key);
+    } else {
+        activeCategoryFilters.delete(key);
+    }
+    renderConversations(allChats);
+});
+
+categoryFilterPopup.addEventListener('click', (e) => {
+    e.stopPropagation();
+});
+
+//dong pop loc phan loai
+document.addEventListener('click', () => {
+    categoryFilterPopup.style.display = 'none';
+});
+
+
+//category menu
+const categoryMenu = document.createElement('div');
+categoryMenu.className = 'conv-menu';
+categoryMenu.style.display = 'none';
+
+categoryMenu.innerHTML = CHAT_CATEGORIES.map(c => `
+    <div class="conv-menu-item category-item" data-category="${c.key}">
+        <span class="color-box" style="background:${c.color}"></span>
+        ${c.label}
+    </div>
+`).join('');
+document.body.appendChild(categoryMenu);
+
+//xu ly sk category menu
+categoryMenu.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const item = e.target.closest('.category-item');
+    if (!item) return;
+    const chat = categoryMenu.currentChat;
+    const selected = item.dataset.category;
+
+    // chon lai cung loai thi bo
+    if (chat.category === selected) {
+        delete chat.category;
+    } else {
+        chat.category = selected;
+    }
+    saveUserChats(getCurrentUser(), allChats);
+    categoryMenu.style.display = 'none';
+    renderConversations(allChats);
+});
+
+//dong tat ca menu khi nhan ra ngoai
+document.addEventListener('click', () => {
+    document.querySelectorAll('.conv-menu').forEach(m => {
+        m.style.display = 'none';
+    });
+});
 
 // Render conversations list
 function renderConversations(chats) {
     conversationsList.innerHTML = '';
 
-    (chats || []).forEach(chat => {
-        if (!chat) return;
+    //loc theo tag
+    let chatsToRender = chats;
+    if (conversationFilter === "unread") {
+        chatsToRender = chatsToRender.filter(c => c.unread > 0);
+    }
+
+    //loc theo o tim kiem
+    const keyword = searchInput.value.trim().toLowerCase();
+    if (keyword) {
+        chatsToRender = chatsToRender.filter(c =>
+            c.name.toLowerCase().includes(keyword)
+        );
+    }
+
+    // loc phan loai theo tick
+    if (activeCategoryFilters.size > 0) {
+        chatsToRender = chatsToRender.filter(chat =>
+            chat.category && activeCategoryFilters.has(chat.category)
+        );
+    }
+
+    // render ds
+    chatsToRender.forEach(chat => {
         const div = document.createElement('div');
         div.className = `conversation ${currentChat?.id === chat.id ? 'active' : ''}`;
+        div.style.position = 'relative';
+        const category = CHAT_CATEGORIES.find(c => c.key === chat.category);
         div.innerHTML = `
             <img src="${chat.avatar}" alt="" class="conversation-avatar">
             <div class="conversation-info">
                 <div class="conversation-header">
                     <span class="conversation-name">
-                        ${chat.name}
+                        <span class="name-text">${chat.name}</span>
                         ${chat.unread > 0 ? `<span class="badge-unread">${chat.unread}</span>` : ''}
                     </span>
                     <span class="conversation-time">${chat.timestamp ? formatTimestamp(chat.timestamp) : ''}</span>
                 </div>
-                <div class="conversation-message ${chat.unread > 0 ? 'unread' : ''}">
-                    ${chat.lastMessage || ''}
+                <div class="conversation-meta">
+                    ${category ? `
+                    <span class="category-dot" style="background:${category.color}"></span>` : ''}
+                    <span class="conversation-message ${chat.unread > 0 ? 'unread' : ''}">
+                        ${chat.lastMessage || ''}
+                    </span>
+                    <span class="conversation-time">${chat.timestamp ? formatTimestamp(chat.timestamp) : ''}</span>
                 </div>
             </div>
             ${chat.online ? '<div class="online-badge"></div>' : ''}
@@ -533,132 +714,50 @@ function renderConversations(chats) {
             z-index:9999;
             min-width:180px;
         `;
-        const hasMessages = chat.messages && chat.messages.length > 0;
-        const hasHiddenMessages = chat.hiddenMessages && chat.hiddenMessages.length > 0;
-        
-        let menuHTML = '';
-        if (hasMessages) {
-            menuHTML += `<div class="menu-item hide-messages" style="padding:10px 16px; cursor:pointer; font-size:14px; transition:background 0.15s;">Ẩn tin nhắn</div>`;
-        } else if (hasHiddenMessages) {
-            menuHTML += `<div class="menu-item restore-messages" style="padding:10px 16px; cursor:pointer; font-size:14px; color:#27ae60; transition:background 0.15s;">Khôi phục tin nhắn</div>`;
-        } else {
-            menuHTML += `<div class="menu-item no-action" style="padding:10px 16px; font-size:14px; color:#999; cursor:not-allowed;">Không có tin nhắn</div>`;
-        }
-        menuHTML += `<div class="menu-item delete-chat" style="padding:10px 16px; cursor:pointer; font-size:14px; color:#e74c3c; transition:background 0.15s;">Xóa hội thoại</div>`;
-        
-        menu.innerHTML = menuHTML;
-        document.body.appendChild(menu);
+        menu.innerHTML = `
+            <div class="conv-menu-item delete">Xóa hội thoại</div>
+            <div class="conv-menu-item classify">Phân loại</div>
+        `;
+        div.appendChild(menu);
+
+        //xu ly hover
+        const timeEl = div.querySelector('.conversation-time');
+        const menuIcon = div.querySelector('.conversation-menu-icon');
+
+        div.addEventListener('mouseenter', () => {
+            timeEl.style.display = 'none';
+            menuIcon.style.display = 'inline';
+        });
+
+        div.addEventListener('mouseleave', () => {
+            timeEl.style.display = 'inline';
+            menuIcon.style.display = 'none';
+        });
 
         // Right-click trên avatar để mở context menu
         const avatar = div.querySelector('.conversation-avatar');
         avatar.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            
-            // Ẩn tất cả menu khác
-            document.querySelectorAll('.context-menu').forEach(m => m.style.display = 'none');
-            
-            // Cập nhật menu dựa trên trạng thái hiện tại
-            const hasMessages = chat.messages && chat.messages.length > 0;
-            const hasHiddenMessages = chat.hiddenMessages && chat.hiddenMessages.length > 0;
-            
-            let menuHTML = '';
-            if (hasMessages) {
-                menuHTML += `<div class="menu-item hide-messages" style="padding:10px 16px; cursor:pointer; font-size:14px; transition:background 0.15s;">Ẩn tin nhắn</div>`;
-            } else if (hasHiddenMessages) {
-                menuHTML += `<div class="menu-item restore-messages" style="padding:10px 16px; cursor:pointer; font-size:14px; color:#27ae60; transition:background 0.15s;">Khôi phục tin nhắn</div>`;
-            } else {
-                menuHTML += `<div class="menu-item no-action" style="padding:10px 16px; font-size:14px; color:#999; cursor:not-allowed;">Không có tin nhắn</div>`;
-            }
-            menuHTML += `<div class="menu-item delete-chat" style="padding:10px 16px; cursor:pointer; font-size:14px; color:#e74c3c; transition:background 0.15s;">Xóa hội thoại</div>`;
-            
-            menu.innerHTML = menuHTML;
-            
-            // Re-attach hover effects
-            menu.querySelectorAll('.menu-item').forEach(item => {
-                item.addEventListener('mouseenter', () => {
-                    if (item.style.cursor !== 'not-allowed') {
-                        item.style.background = '#f5f5f5';
-                    }
-                });
-                item.addEventListener('mouseleave', () => {
-                    item.style.background = 'transparent';
-                });
-            });
-            
-            // Hiển thị menu tại vị trí chuột
-            menu.style.display = 'block';
-            menu.style.left = e.pageX + 'px';
-            menu.style.top = e.pageY + 'px';
-            
-            // Đảm bảo menu không bị tràn ra ngoài màn hình
-            const rect = menu.getBoundingClientRect();
-            if (rect.right > window.innerWidth) {
-                menu.style.left = (e.pageX - rect.width) + 'px';
-            }
-            if (rect.bottom > window.innerHeight) {
-                menu.style.top = (e.pageY - rect.height) + 'px';
-            }
+            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
         });
 
-        // Click ra ngoài đóng menu
-        document.addEventListener('click', () => {
-            menu.style.display = 'none';
-        });
-        
-        // Hover effect cho menu items
-        menu.querySelectorAll('.menu-item').forEach(item => {
-            item.addEventListener('mouseenter', () => {
-                if (item.style.cursor !== 'not-allowed') {
-                    item.style.background = '#f5f5f5';
-                }
-            });
-            item.addEventListener('mouseleave', () => {
-                item.style.background = 'transparent';
-            });
-        });
-        
-        // Menu actions using event delegation to support dynamic content
+        //click mo menu item
         menu.addEventListener('click', (e) => {
-            const target = e.target.closest('.menu-item');
-            if (!target) return;
-            
-            const cu = getCurrentUser();
-            if (!cu) {
-                alert('Vui lòng đăng nhập');
-                return;
-            }
-            
-            // Hide messages
-            if (target.classList.contains('hide-messages')) {
-                e.stopPropagation();
-                
-                if (!chat.messages || chat.messages.length === 0) {
-                    menu.style.display = 'none';
-                    return;
-                }
-                
-                if (!confirm(`Ẩn toàn bộ tin nhắn với ${chat.name}? Bạn có thể khôi phục sau.`)) {
-                    menu.style.display = 'none';
-                    return;
-                }
-                
-                // Backup tin nhắn trước khi xóa
-                chat.hiddenMessages = [...chat.messages];
-                chat.messages = [];
-                chat.lastMessage = 'Tin nhắn đã được ẩn';
-                chat.timestamp = 'Bây giờ';
-                chat.unread = 0;
+            e.stopPropagation();
 
-                if (currentChat && currentChat.id === chat.id) {
-                    renderMessages(chat.messages);
+            // xóa hội thoại
+            if (e.target.closest('.delete')) {
+                if (!confirm(`Xóa hội thoại với ${chat.name}?`)) return;
+                allChats = allChats.filter(c => c.id !== chat.id);
+                saveUserChats(getCurrentUser(), allChats);
+                if (currentChat?.id === chat.id) {
+                    currentChat = null;
+                    chatWindow.style.display = 'none';
+                    emptyChat.style.display = 'flex';
                 }
-
-                saveUserChats(cu, allChats);
                 renderConversations(allChats);
-                menu.style.display = 'none';
-                
-                alert('Đã ẩn toàn bộ tin nhắn. Nhấp chuột phải vào avatar để khôi phục.');
+                return;
             }
             
             // Restore messages
@@ -686,32 +785,14 @@ function renderConversations(chats) {
                 }
                 chat.timestamp = 'Bây giờ';
 
-                if (currentChat && currentChat.id === chat.id) {
-                    renderMessages(chat.messages);
-                }
-
-                saveUserChats(cu, allChats);
-                renderConversations(allChats);
-                menu.style.display = 'none';
-                
-                alert('Đã khôi phục tin nhắn thành công!');
-            }
-            
-            // Delete conversation
-            else if (target.classList.contains('delete-chat')) {
+            // mo popup 2 phan loaii
+            if (e.target.closest('.classify')) {
                 e.stopPropagation();
-                if (!confirm(`Xóa hội thoại với ${chat.name}?`)) return;
-                
-                allChats = allChats.filter(c => c.id !== chat.id);
-                saveUserChats(cu, allChats);
-                
-                if (currentChat && currentChat.id === chat.id) {
-                    currentChat = null;
-                    chatWindow.style.display = 'none';
-                    emptyChat.style.display = 'flex';
-                }
-                
-                renderConversations(allChats);
+                const rect = menu.getBoundingClientRect();
+                categoryMenu.style.top = rect.top + 'px';
+                categoryMenu.style.left = rect.right + 6 + 'px';
+                categoryMenu.style.display = 'block';
+                categoryMenu.currentChat = chat;
             }
         });
 
@@ -848,6 +929,7 @@ function openChat(chat) {
 
     // Render messages
     renderMessages(chat.messages);
+    renderPinnedMessage();
     renderConversations(allChats);
 
     messageInput.focus();
@@ -1498,7 +1580,6 @@ function renderMessages(messages) {
         const firstMsg = group[0];
         // tin nhan hẹ thong render đơn giản rồi return
         if (firstMsg.type === "system" || firstMsg.sender === "system") {
-
             const systemDiv = document.createElement('div');
             systemDiv.className = 'system-message';
             systemDiv.style.textAlign = 'center';
@@ -1548,7 +1629,6 @@ function renderMessages(messages) {
             sep.className = "day-separator";
             sep.innerHTML = `<span>${formatChatDateLabel(dateObj)}</span>`;
             messagesContainer.appendChild(sep);
-            return;
         }
 
         // cung hom nay neu cach xa thoi gian thi them gio + hom nay
@@ -1577,13 +1657,13 @@ function renderMessages(messages) {
             systemDiv.style.color = '#65676b';
             systemDiv.style.fontSize = '12px';
             systemDiv.style.fontStyle = 'italic';
-            
+
             group.forEach(msg => {
                 const msgText = document.createElement('div');
                 msgText.textContent = msg.text;
                 systemDiv.appendChild(msgText);
             });
-            
+
             messagesContainer.appendChild(systemDiv);
             return;
         }
@@ -1591,14 +1671,51 @@ function renderMessages(messages) {
         const msgDiv = document.createElement('div');
         msgDiv.className = `message-group ${group[0].sender === 'you' ? 'sent' : 'received'}`;
 
+        if (firstMsg.isGroup) {
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'group-sender-name';
+            nameDiv.style.fontSize = '12px';
+            nameDiv.style.color = '#0a66c2';
+            nameDiv.style.margin = '2px 4px';
+
+            nameDiv.textContent = firstMsg.sender === 'you'
+                ? 'Bạn'
+                : firstMsg.sender;
+            msgDiv.appendChild(nameDiv);
+        }
+
         group.forEach(msg => {
             // wrapper để hover icon
             const bubbleWrapper = document.createElement('div');
             bubbleWrapper.className = 'message-bubble-wrapper';
             bubbleWrapper.style.position = 'relative';
+            bubbleWrapper.dataset.messageId = msg.id;
 
             const bubble = document.createElement('div');
             bubble.className = 'message-bubble';
+
+            // reply
+            if (msg.replyTo) {
+                const replyPreview = document.createElement('div');
+                replyPreview.className = 'reply-preview';
+
+                const replySender = document.createElement('div');
+                replySender.style.fontWeight = '600';
+                replySender.style.fontSize = '12px';
+                replySender.textContent =
+                    msg.replyTo.senderName || 'Bạn';
+
+                const replyText = document.createElement('div');
+                replyText.style.whiteSpace = 'nowrap';
+                replyText.style.overflow = 'hidden';
+                replyText.style.textOverflow = 'ellipsis';
+                replyText.textContent = msg.replyTo.text || '[Hình ảnh]';
+
+                replyPreview.appendChild(replySender);
+                replyPreview.appendChild(replyText);
+                bubble.appendChild(replyPreview);
+            }
+
             // support image messages
             if (msg.image) {
                 const imgEl = document.createElement('img');
@@ -1615,40 +1732,47 @@ function renderMessages(messages) {
                     bubble.appendChild(caption);
                 }
             } else {
-                bubble.textContent = msg.text || '';
+                const textDiv = document.createElement('div');
+                textDiv.innerHTML = highlightMentions(msg.text || '');
+                bubble.appendChild(textDiv);
             }
 
-            // icon mneu 3 chấm
-            const icon = document.createElement('div');
-            icon.className = 'message-actions-icon';
-            icon.textContent = '⋯';
-            if (group[0].sender === 'you') {
-                icon.style.right = 'auto';
-            } else {
-                icon.style.left = 'auto';
-            }
-            bubbleWrapper.appendChild(icon);
+            // ===== actions (reply + menu) =====
+            const actions = document.createElement('div');
+            actions.className = 'message-actions';
 
+            // icon trả lời
+            const replyIcon = document.createElement('div');
+            replyIcon.className = 'message-reply-icon';
+            replyIcon.textContent = '❝';
+
+            // icon menu 3 chấm
+            const menuIcon = document.createElement('div');
+            menuIcon.className = 'message-actions-icon';
+            menuIcon.textContent = '⋯';
+
+            actions.appendChild(replyIcon);
+            actions.appendChild(menuIcon);
 
             // menu
             const menu = document.createElement('div');
             menu.className = 'message-actions-menu';
             menu.innerHTML = `
+                <div class="react-msg">Thả cảm xúc</div>
                 <div class="copy-msg">Copy</div>
+                 <div class="pin-msg">Ghim tin nhắn</div>
                 <div class="recall-msg">Thu hồi</div>
                 <div class="delete-msg">Xóa</div>
             `;
-            bubbleWrapper.appendChild(menu);
 
-            // click icon hiện menu
-            icon.addEventListener('click', (e) => {
+            actions.addEventListener('click', (e) => {
                 e.stopPropagation();
-                menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
             });
 
-            // click ra ngoài đóng menu
-            document.addEventListener('click', () => {
-                menu.style.display = 'none';
+            // click icon hiện menu
+            menuIcon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
             });
 
             // các chức năng menu
@@ -1675,11 +1799,55 @@ function renderMessages(messages) {
                 menu.style.display = 'none';
             });
 
+            //xu ly click ghim tinn nhan
+            menu.querySelector('.pin-msg').addEventListener('click', () => {
+                const cu = getCurrentUser();
+                currentChat.pinnedMessage = {
+                    id: msg.id,
+                    text: msg.text,
+                    senderId: msg.sender,
+                    senderName:
+                        msg.sender === 'you'
+                            ? cu?.name || 'Bạn'
+                            : msg.senderName || currentChat.name
+                };
+                if (cu) saveUserChats(cu, allChats);
+                renderPinnedMessage();
+                menu.style.display = 'none';
+            });
+
+            // xu ly click reaction
+            menu.querySelector('.react-msg').addEventListener('click', (e) => {
+                e.stopPropagation();
+                menu.style.display = 'none';
+                showReactionPicker(bubbleWrapper, msg, messages);
+            });
+            
+            //xu ly sk reply icon
+            replyIcon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                replyingMessage = {
+                    id: msg.id,
+                    text: msg.text,
+                    sender: msg.sender,
+                    senderName:
+                        msg.sender === 'you'
+                            ? 'Bạn'
+                            : (msg.senderName || currentChat.name)
+                };
+                document.getElementById('replySender').textContent =
+                    msg.sender === 'you'
+                        ? 'Bạn'
+                        : (msg.senderName || currentChat.name);
+                document.getElementById('replyText').textContent =
+                    msg.text || '[Hình ảnh]';
+                document.getElementById('replyBox').style.display = 'flex';
+            });
+
             // Long-press (hold) to show actions menu — supports touch and mouse
             let pressTimer = null;
             const LONG_PRESS_MS = 600;
             const startPress = (e) => {
-                // prevent context menu on long press
                 if (e && e.type === 'touchstart') e.preventDefault();
                 if (pressTimer) clearTimeout(pressTimer);
                 pressTimer = setTimeout(() => {
@@ -1697,15 +1865,102 @@ function renderMessages(messages) {
             bubbleWrapper.addEventListener('mouseup', cancelPress);
             bubbleWrapper.addEventListener('mouseleave', cancelPress);
 
+            // hiển thị reactions
+            if (msg.reactions && msg.reactions.length > 0) {
+                const reactionsDiv = document.createElement('div');
+                reactionsDiv.className = 'message-reactions';
+                reactionsDiv.style.cssText = 'display:flex; gap:4px; flex-wrap:wrap; margin-top:4px; font-size:14px;';
+                
+                // nhóm reactions theo emoji
+                const reactionCounts = {};
+                msg.reactions.forEach(r => {
+                    if (!reactionCounts[r.emoji]) {
+                        reactionCounts[r.emoji] = { count: 0, users: [] };
+                    }
+                    reactionCounts[r.emoji].count++;
+                    reactionCounts[r.emoji].users.push(r.user);
+                });
+                
+                // hiển thị từng emoji với count
+                Object.keys(reactionCounts).forEach(emoji => {
+                    const reactionItem = document.createElement('span');
+                    const cu = getCurrentUser();
+                    const hasReacted = reactionCounts[emoji].users.includes(cu);
+                    reactionItem.className = hasReacted ? 'reaction-item active' : 'reaction-item';
+                    reactionItem.style.cssText = `
+                        padding:2px 6px;
+                        border-radius:12px;
+                        background:${hasReacted ? '#e7f3ff' : '#f0f0f0'};
+                        border:${hasReacted ? '1px solid #0a66c2' : '1px solid transparent'};
+                        cursor:pointer;
+                        display:flex;
+                        align-items:center;
+                        gap:2px;
+                        transition:all 0.2s;
+                    `;
+                    reactionItem.innerHTML = `${emoji} ${reactionCounts[emoji].count}`;
+                    reactionItem.title = reactionCounts[emoji].users.join(', ');
+                    
+                    // click để thêm/xóa reaction
+                    reactionItem.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        toggleReaction(msg, emoji, messages);
+                    });
+                    
+                    reactionsDiv.appendChild(reactionItem);
+                });
+                
+                // nút thêm reaction
+                const addReactionBtn = document.createElement('span');
+                addReactionBtn.className = 'add-reaction-btn';
+                addReactionBtn.style.cssText = `
+                    padding:2px 6px;
+                    border-radius:12px;
+                    background:#f0f0f0;
+                    cursor:pointer;
+                    font-size:16px;
+                    display:flex;
+                    align-items:center;
+                    transition:all 0.2s;
+                `;
+                addReactionBtn.textContent = '+';
+                addReactionBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showReactionPicker(bubbleWrapper, msg, messages);
+                });
+                addReactionBtn.addEventListener('mouseenter', () => {
+                    addReactionBtn.style.background = '#e4e6eb';
+                });
+                addReactionBtn.addEventListener('mouseleave', () => {
+                    addReactionBtn.style.background = '#f0f0f0';
+                });
+                
+                reactionsDiv.appendChild(addReactionBtn);
+                bubbleWrapper.appendChild(reactionsDiv);
+            }
+
             bubbleWrapper.addEventListener('mouseenter', () => {
-                icon.style.display = 'block'; // hiện icon
-                if (icon.hideTimeout) clearTimeout(icon.hideTimeout);
-                icon.hideTimeout = setTimeout(() => {
-                    icon.style.display = 'none'; // 2 giây sau ẩn
-                }, 800);
+                actions.style.display = 'flex';
+                if (hideActionsTimer) {
+                    clearTimeout(hideActionsTimer);
+                    hideActionsTimer = null;
+                }
+            });
+            actions.addEventListener('mouseleave', () => {
+                hideActionsTimer = setTimeout(() => {
+                    actions.style.display = 'none';
+                }, 1000);
+            });
+            actions.addEventListener('mouseenter', () => {
+                if (hideActionsTimer) {
+                    clearTimeout(hideActionsTimer);
+                    hideActionsTimer = null;
+                }
             });
 
             bubbleWrapper.appendChild(bubble);
+            bubbleWrapper.appendChild(actions);
+            bubbleWrapper.appendChild(menu);
             msgDiv.appendChild(bubbleWrapper);
         });
 
@@ -1734,24 +1989,115 @@ function renderMessages(messages) {
             }
             msgDiv.appendChild(statusDiv);
         }
-
         const timeDiv = document.createElement('div');
         timeDiv.className = 'message-time';
         timeDiv.textContent = group[group.length - 1].time;
 
         msgDiv.appendChild(timeDiv);
-
         messagesContainer.appendChild(msgDiv);
     });
-
     // Scroll to bottom
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+document.addEventListener('click', () => {
+    document.querySelectorAll('.message-actions-menu')
+        .forEach(m => m.style.display = 'none');
+});
+
+// xu ly su kien tat khung reply
+const closeReplyBtn = document.getElementById('closeReply');
+closeReplyBtn.addEventListener('click', () => {
+    replyingMessage = null;
+    document.getElementById('replyBox').style.display = 'none';
+});
+
+//ham ghim tin nhan
+function renderPinnedMessage() {
+    const box = document.getElementById('pinnedMessageBox');
+    const content = document.getElementById('pinnedMessageContent');
+    if (!box || !content) return;
+    const pinned = currentChat?.pinnedMessage;
+    if (!pinned) {
+        box.style.display = 'none';
+        content.innerHTML = '';
+        return;
+    }
+    content.innerHTML = `
+        <div class="pinned-click" data-id="${pinned.id}">
+            <span class="pin-icon">📌</span>
+            <b>${pinned.senderName}:</b>
+            ${pinned.text || '[Hình ảnh]'}
+        </div>
+    `;
+    box.style.display = 'block';
+}
+
+//ham popup ghim tin nhan
+function initPinnedMenu() {
+    const pinnedMenuIcon = document.getElementById('pinnedMenuIcon');
+    const pinnedMenu = document.getElementById('pinnedMenu');
+    const unpinMessage = document.getElementById('unpinMessage');
+
+    if (!pinnedMenuIcon || !pinnedMenu || !unpinMessage) return;
+
+    //mo menu popup
+    pinnedMenuIcon.addEventListener('click', (e) => {
+        e.stopPropagation();
+        pinnedMenu.style.display =
+            pinnedMenu.style.display === 'block' ? 'none' : 'block';
+    });
+
+    // chuc nang bo ghim tn
+    unpinMessage.addEventListener('click', () => {
+        if (!currentChat) return;
+        delete currentChat.pinnedMessage;
+        const cu = getCurrentUser();
+        if (cu) saveUserChats(cu, allChats);
+        renderPinnedMessage();
+        pinnedMenu.style.display = 'none';
+    });
+
+    // nhan ra ngoai dong popup
+    document.addEventListener('click', () => {
+        pinnedMenu.style.display = 'none';
+    });
+}
+
+//ham su kien khi nhan vao tin nhan da ghim se scroll den tin nhan
+function initPinnedScroll() {
+    document.addEventListener('click', (e) => {
+        const pinned = e.target.closest('.pinned-click');
+        if (!pinned) return;
+        const messageId = pinned.dataset.id;
+        if (!messageId) return;
+        const targetMsg = document.querySelector(
+            `.message-bubble-wrapper[data-message-id="${messageId}"]`
+        );
+        if (!targetMsg) return;
+        // scroll tin nhắn
+        targetMsg.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+        });
+        // highlight khung
+        targetMsg.classList.add('highlight');
+        setTimeout(() => {
+            targetMsg.classList.remove('highlight');
+        }, 2000);
+    });
+}
+
+//highlight mention
+function highlightMentions(text){
+    if(!text) return "";
+    return text.replace(/@[\p{L}\p{M}0-9_ ]+/gu, match =>
+        `<span class="mention">${match.trim()}</span>`);
 }
 
 function retryMessage(msg) {
     msg.status = 'sending';
     renderMessages(currentChat.messages);
-
     simulateSendResult(msg);
 }
 
@@ -1815,23 +2161,44 @@ function handleIncomingMessage(data) {
 
 // Send message
 function sendMessage() {
+    if (!currentChat) return;
     const text = messageInput.value.trim();
-    if (!text || !currentChat) return;
-
+    if (!text) return;
     const now = new Date();
     const time = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const date = now.toLocaleDateString('vi-VN');
 
     const msg = {
         id: Date.now(),
         sender: 'you',
-        text: text,
-        time: time,
-        date: new Date().toISOString().split("T")[0],
+        text: messageInput.value,
+        time: now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        date: now.toISOString().split("T")[0],
         fullTime: new Date().toISOString(),
-        status: 'sending' // trạng thái mới
+        status: 'sending', // trạng thái mới
+        isGroup: currentChat.type === 'group',
+        replyTo: replyingMessage
+            ? {
+                id: replyingMessage.id,
+                senderId: replyingMessage.sender,
+                senderName: replyingMessage.senderName,
+                text: replyingMessage.text
+            }
+            : null
     };
 
+    //xu ly tag trong group
+    if (currentChat.type === 'group') {
+        if (text.includes('@all')) {
+            msg.tagAll = true;
+        }
+    }
+
     currentChat.messages.push(msg);
+
+    replyingMessage = null;
+    const replyBox = document.getElementById('replyBox');
+    if (replyBox) replyBox.style.display = 'none';
 
     currentChat.lastMessage = text;
     currentChat.timestamp = 'Bây giờ';
@@ -1840,6 +2207,10 @@ function sendMessage() {
     renderConversations(allChats);
 
     messageInput.value = '';
+    mentionSearch = "";
+    if (mentionBox) {
+        mentionBox.style.display = "none";
+    }
 
     // Gọi fake API SEND_CHAT
     if (fakeApiEnabled) {
@@ -2118,7 +2489,22 @@ function attachEvents() {
     });
     let typingTimeout = null;
     messageInput.addEventListener('input', () => {
-        if (!currentChat) return;
+        if (!currentChat || !currentChat.isGroup) return;
+
+        const value = messageInput.value;
+        const pos = messageInput.selectionStart;
+
+        // Nếu gõ @
+        if (value[pos - 1] === "@") {
+            mentionStartIndex = pos - 1;
+            showMentionList();
+            return;
+        }
+
+        // nếu xóa tới trước vị trí @
+        if (mentionStartIndex !== -1 && pos <= mentionStartIndex) {
+            closeMention();
+        }
 
         window.api.sendRaw({
             action: 'onchat',
@@ -2236,13 +2622,69 @@ function attachEvents() {
             ev.target.value = '';
         });
     }
-
-// Click ra ngoài thì đóng popup (giống Messenger)
+    // Click ra ngoài thì đóng popup (giống Messenger)
     document.addEventListener('click', () => {
         emojiPopup.style.display = 'none';
     });
-
 }
+
+//hien thi ds member
+function showMentionList() {
+    if (!currentChat || !currentChat.members) return;
+
+    mentionBox.innerHTML = "";
+    const allItem = document.createElement("div");
+    allItem.className = "mention-item";
+    allItem.style.cssText = `
+        padding:6px 10px;
+        cursor:pointer;
+    `;
+    allItem.textContent = "mọi người (@all)";
+    allItem.onclick = () => selectMention("all");
+    mentionBox.appendChild(allItem);
+
+    //ds member
+    currentChat.members.forEach(m => {
+        const item = document.createElement("div");
+        item.className = "mention-item";
+        item.style.cssText = `
+            padding:6px 10px;
+            cursor:pointer;
+        `;
+        item.textContent = m;
+        item.onclick = () => selectMention(m);
+        mentionBox.appendChild(item);
+    });
+
+    const rect = messageInput.getBoundingClientRect();
+    mentionBox.style.left = rect.left + "px";
+    mentionBox.style.top = (rect.top - 200) + "px";
+    mentionBox.style.display = "block";
+}
+
+//chon menber sau khi nhan chon
+function selectMention(name) {
+    if (name === "all") {
+        name = "mọi người";
+    }
+    const value = messageInput.value;
+    messageInput.value =
+        value.substring(0, mentionStartIndex) +
+        "@" + name + " " +
+        value.substring(messageInput.selectionStart);
+    closeMention();
+}
+
+//dong menu popup
+function closeMention() {
+    mentionStartIndex = -1;
+    mentionBox.style.display = "none";
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initPinnedScroll();
+});
+initPinnedMenu();
 
 // Start
 init();
@@ -2376,7 +2818,6 @@ const api = {
 
 // expose to console for quick testing
 window.api = api;
-
 console.log('API helpers loaded. Use window.api.connect(url) to connect.');
 
 // ========== VOICE/VIDEO CALL FEATURE ==========
@@ -2451,46 +2892,56 @@ function answerCall() {
     
     console.log('📞 Call answered');
     
-    // Start timer
+    // Reset and start timer
     callDuration = 0;
-    updateCallTimer();
+    callTimerEl.textContent = '00:00';
+    
+    // Clear any existing timer first
+    if (callTimer) {
+        clearInterval(callTimer);
+        callTimer = null;
+    }
+    
+    // Start new timer
     callTimer = setInterval(() => {
         callDuration++;
-        updateCallTimer();
+        const minutes = Math.floor(callDuration / 60);
+        const seconds = callDuration % 60;
+        callTimerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     }, 1000);
-}
-
-function updateCallTimer() {
-    const callTimerEl = document.getElementById('callTimer');
-    const minutes = Math.floor(callDuration / 60);
-    const seconds = callDuration % 60;
-    callTimerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
 function endCall() {
     const callModal = document.getElementById('callModal');
     callModal.style.display = 'none';
     
-    // Stop timer
+    // Stop timer first
     if (callTimer) {
         clearInterval(callTimer);
         callTimer = null;
     }
     
-    console.log('📞 Call ended. Duration:', callDuration, 'seconds');
+    const finalDuration = callDuration;
+    console.log('📞 Call ended. Duration:', finalDuration, 'seconds');
     
     // Fake API call
     if (fakeApiEnabled) {
-        console.log('📤 FAKE API: END_CALL', { duration: callDuration, type: currentCallType });
+        console.log('📤 FAKE API: END_CALL', { duration: finalDuration, type: currentCallType });
     }
     
     // Add system message to chat
-    if (currentChat) {
+    if (currentChat && finalDuration > 0) {
+        const minutes = Math.floor(finalDuration / 60);
+        const seconds = finalDuration % 60;
+        const timeStr = `${minutes}:${String(seconds).padStart(2, '0')}`;
+        const now = new Date();
+        
         const callMsg = {
             id: Date.now(),
             sender: 'system',
-            text: `Cuộc gọi ${currentCallType === 'voice' ? 'thoại' : 'video'} - Thời gian: ${Math.floor(callDuration / 60)}:${String(callDuration % 60).padStart(2, '0')}`,
-            time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+            text: `Cuộc gọi ${currentCallType === 'voice' ? 'thoại' : 'video'} - Thời gian: ${timeStr}`,
+            time: now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+            date: now.toLocaleDateString('vi-VN')
         };
         currentChat.messages.push(callMsg);
         
@@ -2504,7 +2955,7 @@ function endCall() {
         renderMessages(currentChat.messages);
         renderConversations(allChats);
     }
-    
+    // Reset
     callDuration = 0;
     currentCallType = null;
 }
@@ -2519,4 +2970,115 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initCallButtons);
 } else {
     initCallButtons();
+}
+
+// ===== REACTION FUNCTIONS =====
+function showReactionPicker(parentElement, msg, messages) {
+    // Xóa picker cũ nếu có
+    const oldPicker = document.querySelector('.reaction-picker');
+    if (oldPicker) oldPicker.remove();
+    
+    const picker = document.createElement('div');
+    picker.className = 'reaction-picker';
+    picker.style.cssText = `
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: white;
+        border: 1px solid #e5e5e5;
+        border-radius: 24px;
+        padding: 8px 12px;
+        display: flex;
+        gap: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 1000;
+        margin-bottom: 8px;
+    `;
+    
+    const reactions = ['👍', '❤️', '😂', '😮', '😢', '😡', '🎉'];
+    
+    reactions.forEach(emoji => {
+        const emojiBtn = document.createElement('span');
+        emojiBtn.textContent = emoji;
+        emojiBtn.style.cssText = `
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 50%;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        
+        emojiBtn.addEventListener('mouseenter', () => {
+            emojiBtn.style.transform = 'scale(1.3)';
+            emojiBtn.style.background = '#f0f0f0';
+        });
+        
+        emojiBtn.addEventListener('mouseleave', () => {
+            emojiBtn.style.transform = 'scale(1)';
+            emojiBtn.style.background = 'transparent';
+        });
+        
+        emojiBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleReaction(msg, emoji, messages);
+            picker.remove();
+        });
+        
+        picker.appendChild(emojiBtn);
+    });
+    
+    parentElement.appendChild(picker);
+    
+    // Tự động đóng khi click ra ngoài
+    setTimeout(() => {
+        const closeHandler = (e) => {
+            if (!picker.contains(e.target)) {
+                picker.remove();
+                document.removeEventListener('click', closeHandler);
+            }
+        };
+        document.addEventListener('click', closeHandler);
+    }, 100);
+}
+
+function toggleReaction(msg, emoji, messages) {
+    const cu = getCurrentUser();
+    if (!cu) return;
+    
+    // Khởi tạo reactions array nếu chưa có
+    if (!msg.reactions) {
+        msg.reactions = [];
+    }
+    
+    // Kiểm tra xem user đã react emoji này chưa
+    const existingIndex = msg.reactions.findIndex(r => r.user === cu && r.emoji === emoji);
+    
+    if (existingIndex > -1) {
+        // Đã react rồi thì xóa
+        msg.reactions.splice(existingIndex, 1);
+    } else {
+        // Chưa react thì thêm mới
+        msg.reactions.push({
+            user: cu,
+            emoji: emoji,
+            timestamp: new Date().toISOString()
+        });
+    }
+    
+    // Lưu lại và render lại
+    saveUserChats(cu, allChats);
+    renderMessages(messages);
+    
+    // Fake API call
+    if (fakeApiEnabled) {
+        console.log('📤 FAKE API: TOGGLE_REACTION', { 
+            messageId: msg.id, 
+            emoji, 
+            action: existingIndex > -1 ? 'remove' : 'add' 
+        });
+    }
 }
