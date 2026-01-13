@@ -319,6 +319,17 @@ function fakeCheckUserExist(user) {
 // Fake API: CREATE_ROOM
 function fakeCreateRoom(name) {
     console.log('📤 FAKE API: CREATE_ROOM', { name });
+    
+    // Gửi qua WebSocket nếu có kết nối
+    if (window.api && typeof window.api.createRoom === 'function') {
+        try {
+            window.api.createRoom(name);
+            console.log('✅ Sent CREATE_ROOM via WebSocket');
+        } catch (error) {
+            console.warn('⚠️ WebSocket CREATE_ROOM failed:', error);
+        }
+    }
+    
     setTimeout(() => {
         console.log('📥 FAKE API Response: Room created', name);
     }, 300);
@@ -327,6 +338,17 @@ function fakeCreateRoom(name) {
 // Fake API: JOIN_ROOM
 function fakeJoinRoom(name) {
     console.log('📤 FAKE API: JOIN_ROOM', { name });
+    
+    // Gửi qua WebSocket nếu có kết nối
+    if (window.api && typeof window.api.joinRoom === 'function') {
+        try {
+            window.api.joinRoom(name);
+            console.log('✅ Sent JOIN_ROOM via WebSocket');
+        } catch (error) {
+            console.warn('⚠️ WebSocket JOIN_ROOM failed:', error);
+        }
+    }
+    
     setTimeout(() => {
         console.log('📥 FAKE API Response: Joined room', name);
     }, 300);
@@ -335,6 +357,17 @@ function fakeJoinRoom(name) {
 // Fake API: GET_PEOPLE_CHAT_MES
 function fakeGetPeopleChatMes(name, page = 1) {
     console.log('📤 FAKE API: GET_PEOPLE_CHAT_MES', { name, page });
+    
+    // Gửi qua WebSocket nếu có kết nối
+    if (window.api && typeof window.api.getPeopleChatMes === 'function') {
+        try {
+            window.api.getPeopleChatMes(name, page);
+            console.log('✅ Sent GET_PEOPLE_CHAT_MES via WebSocket');
+        } catch (error) {
+            console.warn('⚠️ WebSocket GET_PEOPLE_CHAT_MES failed:', error);
+        }
+    }
+    
     setTimeout(() => {
         console.log('📥 FAKE API Response: Chat messages for', name);
     }, 300);
@@ -343,6 +376,17 @@ function fakeGetPeopleChatMes(name, page = 1) {
 // Fake API: GET_ROOM_CHAT_MES
 function fakeGetRoomChatMes(name, page = 1) {
     console.log('📤 FAKE API: GET_ROOM_CHAT_MES', { name, page });
+    
+    // Gửi qua WebSocket nếu có kết nối
+    if (window.api && typeof window.api.getRoomChatMes === 'function') {
+        try {
+            window.api.getRoomChatMes(name, page);
+            console.log('✅ Sent GET_ROOM_CHAT_MES via WebSocket');
+        } catch (error) {
+            console.warn('⚠️ WebSocket GET_ROOM_CHAT_MES failed:', error);
+        }
+    }
+    
     setTimeout(() => {
         console.log('📥 FAKE API Response: Room messages for', name);
     }, 300);
@@ -1113,6 +1157,16 @@ function openChat(chat) {
 
     // Lưu lại danh sách chat sau khi clear unread
     saveUserChats(getCurrentUser(), allChats);
+
+    // Gọi API JOIN_ROOM nếu là nhóm
+    if (chat.isGroup && fakeApiEnabled) {
+        fakeJoinRoom(chat.name);
+        // Lấy tin nhắn của nhóm
+        fakeGetRoomChatMes(chat.name, 1);
+    } else if (!chat.isGroup && fakeApiEnabled) {
+        // Lấy tin nhắn cá nhân nếu không phải nhóm
+        fakeGetPeopleChatMes(chat.name, 1);
+    }
 
     // Render messages
     renderMessages(chat.messages);
@@ -2457,13 +2511,26 @@ function searchChats(query) {
 // Create a group chat (allows any number of members >= 2 including current user)
 function createGroup(members, groupName) {
     const currentUser = getCurrentUser();
-    if (!currentUser) return alert('Vui lòng đăng nhập trước khi tạo nhóm');
+    if (!currentUser) {
+        showNotification('Vui lòng đăng nhập trước khi tạo nhóm');
+        return;
+    }
 
     // Ensure members is an array and contains current user
     const uniqueMembers = Array.from(new Set(members.map(m => m.trim()).filter(Boolean)));
     if (!uniqueMembers.includes(currentUser)) uniqueMembers.unshift(currentUser);
 
-    if (uniqueMembers.length < 2) return alert('Nhóm phải có ít nhất 2 thành viên (gồm bạn)');
+    if (uniqueMembers.length < 2) {
+        showNotification('Nhóm phải có ít nhất 2 thành viên (gồm bạn)');
+        return;
+    }
+
+    const roomName = groupName || `Nhóm: ${uniqueMembers.filter(m => m !== currentUser).join(', ')}`;
+
+    // Gọi API CREATE_ROOM
+    if (fakeApiEnabled) {
+        fakeCreateRoom(roomName);
+    }
 
     // tin nhan he thong dau tien
     const systemMessage = {
@@ -2475,7 +2542,7 @@ function createGroup(members, groupName) {
 
     const newChat = {
         id: Date.now(),
-        name: groupName || `Nhóm: ${uniqueMembers.filter(m => m !== currentUser).join(', ')}`,
+        name: roomName,
         avatar: 'https://i.pravatar.cc/150?img=20',
         lastMessage: 'Nhóm mới',
         timestamp: Date.now(),
@@ -3275,10 +3342,22 @@ const api = {
         console.log('🚪 Calling LOGOUT API...');
         return _sendOnChatNoData('LOGOUT');
     },
-    createRoom: (name) => _sendOnChat('CREATE_ROOM', { name }),
-    joinRoom: (name) => _sendOnChat('JOIN_ROOM', { name }),
-    getRoomChatMes: (name, page = 1) => _sendOnChat('GET_ROOM_CHAT_MES', { name, page }),
-    getPeopleChatMes: (name, page = 1) => _sendOnChat('GET_PEOPLE_CHAT_MES', { name, page }),
+    createRoom: (name) => {
+        console.log('➕ Calling CREATE_ROOM API...');
+        return _sendOnChat('CREATE_ROOM', { name });
+    },
+    joinRoom: (name) => {
+        console.log('🚪 Calling JOIN_ROOM API...');
+        return _sendOnChat('JOIN_ROOM', { name });
+    },
+    getRoomChatMes: (name, page = 1) => {
+        console.log('📨 Calling GET_ROOM_CHAT_MES API...');
+        return _sendOnChat('GET_ROOM_CHAT_MES', { name, page });
+    },
+    getPeopleChatMes: (name, page = 1) => {
+        console.log('📨 Calling GET_PEOPLE_CHAT_MES API...');
+        return _sendOnChat('GET_PEOPLE_CHAT_MES', { name, page });
+    },
     sendChatRoom: (to, mes) => _sendOnChat('SEND_CHAT', { type: 'room', to, mes }),
     sendChatPeople: (to, mes) => _sendOnChat('SEND_CHAT', { type: 'people', to, mes }),
     checkUser: (user) => _sendOnChat('CHECK_USER', { user }),
