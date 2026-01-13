@@ -2156,3 +2156,140 @@ body.dark .forwarded-label {
 body.dark .notification-content {
     background: #2e7d32;
 }
+
+/* Custom Modal (Prompt & Confirm) */
+.custom-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+
+.modal-box {
+    position: relative;
+    background: #fff;
+    border-radius: 12px;
+    width: 450px;
+    max-width: 90%;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+.modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #050505;
+}
+
+.modal-body {
+    padding: 24px;
+}
+
+.modal-body p {
+    margin: 0 0 16px 0;
+    font-size: 15px;
+    color: #333;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.modal-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.modal-input:focus {
+    border-color: #0a66c2;
+}
+
+.modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid #e5e5e5;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.modal-btn {
+    padding: 10px 24px;
+    border-radius: 8px;
+    border: none;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-cancel {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.btn-cancel:hover {
+    background: #e0e0e0;
+}
+
+.btn-primary {
+    background: #0a66c2;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: #084a8f;
+}
+
+/* Dark mode modal */
+body.dark .modal-box {
+    background: #242424;
+}
+
+body.dark .modal-header {
+    border-bottom-color: #3a3b3c;
+}
+
+body.dark .modal-header h3 {
+    color: #e4e6eb;
+}
+
+body.dark .modal-body p {
+    color: #b0b3b8;
+}
+
+body.dark .modal-input {
+    background: #3a3b3c;
+    border-color: #555;
+    color: #e4e6eb;
+}
+
+body.dark .modal-footer {
+    border-top-color: #3a3b3c;
+}
+
+body.dark .btn-cancel {
+    background: #3a3b3c;
+    color: #e4e6eb;
+}
+
+body.dark .btn-cancel:hover {
+    background: #4e4f50;
+}

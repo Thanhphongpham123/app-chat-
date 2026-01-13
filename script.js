@@ -796,7 +796,7 @@ function renderConversations(chats) {
         });
         
         // Menu actions using event delegation to support dynamic content
-        menu.addEventListener('click', (e) => {
+        menu.addEventListener('click', async (e) => {
             const target = e.target.closest('.menu-item');
             if (!target) return;
 
@@ -821,7 +821,7 @@ function renderConversations(chats) {
                 }
 
                 // Yêu cầu nhập mật khẩu
-                const password = prompt('Nhập mật khẩu để bảo vệ tin nhắn ẩn:\n(Bạn sẽ cần mật khẩu này để khôi phục tin nhắn)', '');
+                const password = await customPrompt('Mật khẩu', 'Nhập mật khẩu để bảo vệ tin nhắn ẩn:\n(Bạn sẽ cần mật khẩu này để khôi phục tin nhắn)', '', true);
                 
                 if (password === null) {
                     menu.style.display = 'none';
@@ -829,16 +829,16 @@ function renderConversations(chats) {
                 }
                 
                 if (!password || password.trim() === '') {
-                    alert('Mật khẩu không được để trống!');
+                    showNotification('Mật khẩu không được để trống!');
                     menu.style.display = 'none';
                     return;
                 }
 
                 // Xác nhận mật khẩu
-                const confirmPassword = prompt('Xác nhận lại mật khẩu:', '');
+                const confirmPassword = await customPrompt('Xác nhận mật khẩu', 'Xác nhận lại mật khẩu:', '', true);
                 
                 if (confirmPassword !== password) {
-                    alert('Mật khẩu xác nhận không khớp!');
+                    showNotification('Mật khẩu xác nhận không khớp!');
                     menu.style.display = 'none';
                     return;
                 }
@@ -859,7 +859,7 @@ function renderConversations(chats) {
                 renderConversations(allChats);
                 menu.style.display = 'none';
 
-                alert('✓ Đã ẩn và bảo vệ tin nhắn bằng mật khẩu!\nNhấp chuột phải vào avatar và nhập mật khẩu để khôi phục.');
+                showNotification('Đã ẩn và bảo vệ tin nhắn bằng mật khẩu!');
             }
 
             // Restore messages
@@ -872,7 +872,7 @@ function renderConversations(chats) {
                 }
 
                 // Yêu cầu nhập mật khẩu để khôi phục
-                const inputPassword = prompt(`🔒 Nhập mật khẩu để khôi phục tin nhắn với ${chat.name}:`, '');
+                const inputPassword = await customPrompt('Khôi phục tin nhắn', `Nhập mật khẩu để khôi phục tin nhắn với ${chat.name}:`, '', true);
                 
                 if (inputPassword === null) {
                     menu.style.display = 'none';
@@ -881,7 +881,7 @@ function renderConversations(chats) {
 
                 // Kiểm tra mật khẩu
                 if (inputPassword !== chat.hiddenPassword) {
-                    alert('❌ Mật khẩu không đúng! Không thể khôi phục tin nhắn.');
+                    showNotification('Mật khẩu không đúng! Không thể khôi phục tin nhắn.');
                     menu.style.display = 'none';
                     return;
                 }
@@ -906,13 +906,14 @@ function renderConversations(chats) {
                 renderConversations(allChats);
                 menu.style.display = 'none';
 
-                alert('✓ Đã khôi phục tin nhắn thành công!');
+                showNotification('Đã khôi phục tin nhắn thành công!');
             }
 
             // Delete conversation
             else if (target.classList.contains('delete-chat')) {
                 e.stopPropagation();
-                if (!confirm(`Xóa hội thoại với ${chat.name}?`)) return;
+                const confirmed = await customConfirm('Xóa hội thoại', `Xóa hội thoại với ${chat.name}?`);
+                if (!confirmed) return;
 
                 allChats = allChats.filter(c => c.id !== chat.id);
                 saveUserChats(cu, allChats);
@@ -2921,6 +2922,92 @@ function showNotification(message) {
     setTimeout(() => {
         notification.style.display = 'none';
     }, 3000);
+}
+
+// Custom prompt function
+function customPrompt(title, message, defaultValue = '', isPassword = false) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('customPrompt');
+        const titleEl = document.getElementById('promptTitle');
+        const messageEl = document.getElementById('promptMessage');
+        const inputEl = document.getElementById('promptInput');
+        const okBtn = document.getElementById('promptOk');
+        const cancelBtn = document.getElementById('promptCancel');
+        
+        if (!modal) return resolve(null);
+        
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        inputEl.value = defaultValue;
+        inputEl.type = isPassword ? 'password' : 'text';
+        modal.style.display = 'flex';
+        inputEl.focus();
+        
+        const onOk = () => {
+            const value = inputEl.value;
+            modal.style.display = 'none';
+            cleanup();
+            resolve(value);
+        };
+        
+        const onCancel = () => {
+            modal.style.display = 'none';
+            cleanup();
+            resolve(null);
+        };
+        
+        const onKeyPress = (e) => {
+            if (e.key === 'Enter') onOk();
+            if (e.key === 'Escape') onCancel();
+        };
+        
+        const cleanup = () => {
+            okBtn.removeEventListener('click', onOk);
+            cancelBtn.removeEventListener('click', onCancel);
+            inputEl.removeEventListener('keypress', onKeyPress);
+        };
+        
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        inputEl.addEventListener('keypress', onKeyPress);
+    });
+}
+
+// Custom confirm function
+function customConfirm(title, message) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('customConfirm');
+        const titleEl = document.getElementById('confirmTitle');
+        const messageEl = document.getElementById('confirmMessage');
+        const okBtn = document.getElementById('confirmOk');
+        const cancelBtn = document.getElementById('confirmCancel');
+        
+        if (!modal) return resolve(false);
+        
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        modal.style.display = 'flex';
+        
+        const onOk = () => {
+            modal.style.display = 'none';
+            cleanup();
+            resolve(true);
+        };
+        
+        const onCancel = () => {
+            modal.style.display = 'none';
+            cleanup();
+            resolve(false);
+        };
+        
+        const cleanup = () => {
+            okBtn.removeEventListener('click', onOk);
+            cancelBtn.removeEventListener('click', onCancel);
+        };
+        
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+    });
 }
 
 // Xử lý tìm kiếm trong modal chuyển tiếp
