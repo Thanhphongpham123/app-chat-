@@ -1630,8 +1630,14 @@ function renderMessages(messages) {
 
             const bubble = document.createElement('div');
             bubble.className = 'message-bubble';
+            
+            // Support voice messages
+            if (msg.type === 'voice' && msg.audio) {
+                const voiceMsg = createVoiceMessageElement(msg);
+                bubble.appendChild(voiceMsg);
+            }
             // support image messages
-            if (msg.image) {
+            else if (msg.image) {
                 const imgEl = document.createElement('img');
                 imgEl.src = msg.image;
                 imgEl.style.maxWidth = '320px';
@@ -2528,6 +2534,234 @@ darkModeToggle.addEventListener("click", () => {
         localStorage.setItem("darkMode", "off");
     }
 });
+
+// ========================================
+// VOICE RECORDING SYSTEM
+// ========================================
+let mediaRecorder = null;
+let audioChunks = [];
+let recordingTimer = null;
+let recordingStartTime = 0;
+let currentAudioBlob = null;
+
+const voiceRecordBtn = document.getElementById('voiceRecordBtn');
+const recordingStatus = document.getElementById('recordingStatus');
+const recordingTime = document.getElementById('recordingTime');
+const cancelRecordBtn = document.getElementById('cancelRecordBtn');
+const sendVoiceBtn = document.getElementById('sendVoiceBtn');
+const messageInputArea = document.querySelector('.message-input-area');
+
+// Initialize voice recording
+function initVoiceRecording() {
+    if (!voiceRecordBtn) return;
+
+    voiceRecordBtn.addEventListener('click', startRecording);
+    cancelRecordBtn.addEventListener('click', cancelRecording);
+    sendVoiceBtn.addEventListener('click', sendVoiceMessage);
+}
+
+async function startRecording() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        // Create MediaRecorder
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        
+        mediaRecorder.addEventListener('dataavailable', event => {
+            audioChunks.push(event.data);
+        });
+        
+        mediaRecorder.addEventListener('stop', () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            currentAudioBlob = audioBlob;
+            
+            // Stop all tracks
+            stream.getTracks().forEach(track => track.stop());
+        });
+        
+        // Start recording
+        mediaRecorder.start();
+        recordingStartTime = Date.now();
+        
+        // Show recording UI
+        messageInputArea.style.display = 'none';
+        recordingStatus.style.display = 'flex';
+        
+        // Start timer
+        updateRecordingTime();
+        recordingTimer = setInterval(updateRecordingTime, 1000);
+        
+        console.log('Recording started');
+        
+    } catch (error) {
+        console.error('Error accessing microphone:', error);
+        alert('Không thể truy cập microphone. Vui lòng cho phép truy cập trong cài đặt trình duyệt.');
+    }
+}
+
+function updateRecordingTime() {
+    const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+    const minutes = Math.floor(elapsed / 60);
+    const seconds = elapsed % 60;
+    recordingTime.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function cancelRecording() {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+    }
+    
+    clearInterval(recordingTimer);
+    audioChunks = [];
+    currentAudioBlob = null;
+    
+    // Hide recording UI
+    recordingStatus.style.display = 'none';
+    messageInputArea.style.display = 'flex';
+    
+    console.log('Recording cancelled');
+}
+
+function sendVoiceMessage() {
+    if (!currentChat || !currentAudioBlob) return;
+    
+    // Stop recording
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+    }
+    
+    clearInterval(recordingTimer);
+    
+    // Convert blob to base64 for storage
+    const reader = new FileReader();
+    reader.onloadend = function() {
+        const base64Audio = reader.result;
+        const duration = Math.floor((Date.now() - recordingStartTime) / 1000);
+        
+        const now = new Date();
+        
+        // Create voice message
+        const message = {
+            id: Date.now(),
+            sender: 'you',
+            type: 'voice',
+            audio: base64Audio,
+            duration: duration,
+            time: now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+            date: now.toISOString().split("T")[0],
+            fullTime: now.toISOString(),
+            reactions: [],
+            isGroup: currentChat.type === 'group'
+        };
+        
+        currentChat.messages.push(message);
+        
+        // Update last message
+        currentChat.lastMessage = '🎤 Tin nhắn thoại';
+        currentChat.timestamp = Date.now();
+        
+        // Save and render
+        saveUserChats(getCurrentUser(), allChats);
+        renderMessages(currentChat.messages);
+        renderConversations(allChats);
+        
+        // Reset UI
+        recordingStatus.style.display = 'none';
+        messageInputArea.style.display = 'flex';
+        currentAudioBlob = null;
+        
+        console.log('Voice message sent');
+    };
+    
+    reader.readAsDataURL(currentAudioBlob);
+}
+
+// Initialize voice recording on load
+initVoiceRecording();
+
+// ========================================
+// VOICE MESSAGE UI
+// ========================================
+function createVoiceMessageElement(msg) {
+    const voiceDiv = document.createElement('div');
+    voiceDiv.className = 'voice-message';
+    
+    // Play button
+    const playBtn = document.createElement('button');
+    playBtn.className = 'voice-play-btn';
+    playBtn.innerHTML = '<i class="fas fa-play"></i>';
+    
+    // Waveform visualization
+    const waveform = document.createElement('div');
+    waveform.className = 'voice-waveform';
+    
+    // Create random bars for waveform effect
+    const barCount = 20;
+    for (let i = 0; i < barCount; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'voice-bar';
+        const height = 10 + Math.random() * 30;
+        bar.style.height = height + 'px';
+        waveform.appendChild(bar);
+    }
+    
+    // Duration
+    const duration = document.createElement('span');
+    duration.className = 'voice-duration';
+    const mins = Math.floor(msg.duration / 60);
+    const secs = msg.duration % 60;
+    duration.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+    
+    // Hidden audio element
+    const audio = document.createElement('audio');
+    audio.className = 'hidden-audio';
+    audio.src = msg.audio;
+    audio.preload = 'metadata';
+    
+    // Play/Pause functionality
+    let isPlaying = false;
+    playBtn.addEventListener('click', () => {
+        if (isPlaying) {
+            audio.pause();
+            playBtn.innerHTML = '<i class="fas fa-play"></i>';
+            voiceDiv.classList.remove('playing');
+            isPlaying = false;
+        } else {
+            audio.play();
+            playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+            voiceDiv.classList.add('playing');
+            isPlaying = true;
+        }
+    });
+    
+    // Update duration while playing
+    audio.addEventListener('timeupdate', () => {
+        const currentTime = audio.currentTime;
+        const mins = Math.floor(currentTime / 60);
+        const secs = Math.floor(currentTime % 60);
+        duration.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+    });
+    
+    // Reset when ended
+    audio.addEventListener('ended', () => {
+        playBtn.innerHTML = '<i class="fas fa-play"></i>';
+        voiceDiv.classList.remove('playing');
+        isPlaying = false;
+        
+        // Reset duration display
+        const mins = Math.floor(msg.duration / 60);
+        const secs = msg.duration % 60;
+        duration.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+    });
+    
+    voiceDiv.appendChild(playBtn);
+    voiceDiv.appendChild(waveform);
+    voiceDiv.appendChild(duration);
+    voiceDiv.appendChild(audio);
+    
+    return voiceDiv;
+}
 
 
 // -----------------------------

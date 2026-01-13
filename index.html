@@ -148,7 +148,27 @@
                     </div>
 
                     <input type="text" id="messageInput" placeholder="Aa" autocomplete="off">
+                    
+                    <!-- Voice Record Button -->
+                    <button class="icon-btn" id="voiceRecordBtn" title="Ghi âm">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    
                     <button class="icon-btn" id="sendBtn">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+
+                <!-- Recording Status -->
+                <div id="recordingStatus" class="recording-status" style="display:none;">
+                    <div class="recording-indicator">
+                        <span class="recording-dot"></span>
+                        <span id="recordingTime">0:00</span>
+                    </div>
+                    <button class="icon-btn cancel-btn" id="cancelRecordBtn" title="Hủy">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    <button class="icon-btn send-voice-btn" id="sendVoiceBtn" title="Gửi">
                         <i class="fas fa-paper-plane"></i>
                     </button>
                 </div>
