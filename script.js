@@ -275,6 +275,17 @@ function fakeLogout() {
 // Fake API: SEND_CHAT (people)
 function fakeSendChatPeople(to, message) {
     console.log('📤 FAKE API: SEND_CHAT (people)', { to, message });
+    
+    // Gửi qua WebSocket nếu có kết nối
+    if (window.api && typeof window.api.sendChatPeople === 'function') {
+        try {
+            window.api.sendChatPeople(to, message);
+            console.log('✅ Sent SEND_CHAT (people) via WebSocket');
+        } catch (error) {
+            console.warn('⚠️ WebSocket SEND_CHAT (people) failed:', error);
+        }
+    }
+    
     setTimeout(() => {
         console.log('📥 FAKE API Response: Message sent to', to);
     }, 300);
@@ -283,6 +294,17 @@ function fakeSendChatPeople(to, message) {
 // Fake API: SEND_CHAT (room)
 function fakeSendChatRoom(to, message) {
     console.log('📤 FAKE API: SEND_CHAT (room)', { to, message });
+    
+    // Gửi qua WebSocket nếu có kết nối
+    if (window.api && typeof window.api.sendChatRoom === 'function') {
+        try {
+            window.api.sendChatRoom(to, message);
+            console.log('✅ Sent SEND_CHAT (room) via WebSocket');
+        } catch (error) {
+            console.warn('⚠️ WebSocket SEND_CHAT (room) failed:', error);
+        }
+    }
+    
     setTimeout(() => {
         console.log('📥 FAKE API Response: Message sent to room', to);
     }, 300);
@@ -2396,9 +2418,13 @@ function sendMessage() {
         mentionBox.style.display = "none";
     }
 
-    // Gọi fake API SEND_CHAT
+    // Gọi fake API SEND_CHAT theo type
     if (fakeApiEnabled) {
-        fakeSendChatPeople(currentChat.name, text);
+        if (currentChat.isGroup) {
+            fakeSendChatRoom(currentChat.name, text);
+        } else {
+            fakeSendChatPeople(currentChat.name, text);
+        }
     }
 
     simulateSendResult(msg);
@@ -3358,8 +3384,14 @@ const api = {
         console.log('📨 Calling GET_PEOPLE_CHAT_MES API...');
         return _sendOnChat('GET_PEOPLE_CHAT_MES', { name, page });
     },
-    sendChatRoom: (to, mes) => _sendOnChat('SEND_CHAT', { type: 'room', to, mes }),
-    sendChatPeople: (to, mes) => _sendOnChat('SEND_CHAT', { type: 'people', to, mes }),
+    sendChatRoom: (to, mes) => {
+        console.log('📨 Calling SEND_CHAT (room) API...');
+        return _sendOnChat('SEND_CHAT', { type: 'room', to, mes });
+    },
+    sendChatPeople: (to, mes) => {
+        console.log('📨 Calling SEND_CHAT (people) API...');
+        return _sendOnChat('SEND_CHAT', { type: 'people', to, mes });
+    },
     checkUser: (user) => _sendOnChat('CHECK_USER', { user }),
     getUserList: () => _sendOnChat('GET_USER_LIST', {}),
     // send arbitrary payload (object) as an onchat action
