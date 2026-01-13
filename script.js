@@ -192,15 +192,38 @@ let fakeApiEnabled = true; // Bật fake API
 // Fake API: REGISTER
 function fakeRegister(user, pass) {
     console.log('📤 FAKE API: REGISTER', { user, pass });
+    
+    // Gửi qua WebSocket nếu có kết nối
+    if (window.api && typeof window.api.register === 'function') {
+        try {
+            window.api.register(user, pass);
+            console.log('✅ Sent REGISTER via WebSocket');
+        } catch (error) {
+            console.warn('⚠️ WebSocket REGISTER failed, using fake response:', error);
+        }
+    }
+    
     setTimeout(() => {
         console.log('📥 FAKE API Response: REGISTER success');
-        alert('Đăng ký thành công!');
+        showNotification('Đăng ký thành công!');
     }, 500);
 }
 
 // Fake API: LOGIN
 function fakeLogin(user, pass) {
     console.log('📤 FAKE API: LOGIN', { user, pass });
+    
+    // Gửi qua WebSocket nếu có kết nối
+    if (window.api && typeof window.api.login === 'function') {
+        try {
+            window.api.login(user, pass);
+            console.log('✅ Sent LOGIN via WebSocket');
+        } catch (error) {
+            console.warn('⚠️ WebSocket LOGIN failed, using fake response:', error);
+        }
+    }
+    
+    // Fallback: tạo fake RE_LOGIN_CODE
     setTimeout(() => {
         const fakeCode = 'nlu_' + Date.now();
         localStorage.setItem(AUTH_RELOGIN_CODE_KEY, fakeCode);
@@ -214,6 +237,17 @@ function fakeLogin(user, pass) {
 // Fake API: RE_LOGIN
 function fakeReLogin(user, code) {
     console.log('📤 FAKE API: RE_LOGIN', { user, code });
+    
+    // Gửi qua WebSocket nếu có kết nối
+    if (window.api && typeof window.api.re_login === 'function') {
+        try {
+            window.api.re_login(user, code);
+            console.log('✅ Sent RE_LOGIN via WebSocket');
+        } catch (error) {
+            console.warn('⚠️ WebSocket RE_LOGIN failed:', error);
+        }
+    }
+    
     setTimeout(() => {
         console.log('📥 FAKE API Response: RE_LOGIN success');
     }, 300);
@@ -222,6 +256,17 @@ function fakeReLogin(user, code) {
 // Fake API: LOGOUT
 function fakeLogout() {
     console.log('📤 FAKE API: LOGOUT');
+    
+    // Gửi qua WebSocket nếu có kết nối
+    if (window.api && typeof window.api.logout === 'function') {
+        try {
+            window.api.logout();
+            console.log('✅ Sent LOGOUT via WebSocket');
+        } catch (error) {
+            console.warn('⚠️ WebSocket LOGOUT failed:', error);
+        }
+    }
+    
     setTimeout(() => {
         console.log('📥 FAKE API Response: LOGOUT success');
     }, 300);
@@ -519,10 +564,16 @@ function wireAuthUI() {
         const user = document.getElementById('regUser').value.trim();
         const pass = document.getElementById('regPass').value;
         const pass2 = document.getElementById('regPass2').value;
-        if (pass !== pass2) return alert('Mật khẩu xác nhận không khớp');
+        if (pass !== pass2) {
+            showNotification('Mật khẩu xác nhận không khớp');
+            return;
+        }
         const r = createAccount(user, pass);
-        if (!r.ok) return alert(r.error);
-        alert('Tạo tài khoản thành công. Vui lòng đăng nhập.');
+        if (!r.ok) {
+            showNotification(r.error);
+            return;
+        }
+        showNotification('Tạo tài khoản thành công. Vui lòng đăng nhập.');
         tabLogin.click();
     });
 
@@ -3103,6 +3154,18 @@ function connectWs(url) {
             return;
         }
 
+        console.log('📥 WebSocket message received:', msg);
+
+        // Xử lý response LOGIN: lưu RE_LOGIN_CODE
+        if (msg.event === 'RE_LOGIN' && msg.status === 'success') {
+            const reLoginCode = msg.data?.RE_LOGIN_CODE;
+            if (reLoginCode) {
+                localStorage.setItem(AUTH_RELOGIN_CODE_KEY, reLoginCode);
+                console.log('✅ Received RE_LOGIN_CODE:', reLoginCode);
+            }
+            return;
+        }
+
         if (msg.action !== 'onchat') return;
 
         const { event, data } = msg.data;
@@ -3131,9 +3194,28 @@ function connectWs(url) {
         document.getElementById('connectionStatus').textContent = 'Disconnected';
         document.getElementById('connectionStatus').className = 'connection-status offline';
 
-        const code = localStorage.getItem('reloginCode');
-        if (code) {
-            window.api.re_login('long', code);
+        // Tự động RE_LOGIN khi mất kết nối
+        const currentUser = getCurrentUser();
+        const reLoginCode = localStorage.getItem(AUTH_RELOGIN_CODE_KEY);
+        
+        if (currentUser && reLoginCode) {
+            console.log('🔄 Attempting auto RE_LOGIN for user:', currentUser);
+            
+            // Thử kết nối lại sau 2 giây
+            setTimeout(() => {
+                if (wsUrl) {
+                    console.log('🔌 Reconnecting WebSocket...');
+                    connectWs(wsUrl);
+                    
+                    // Gửi RE_LOGIN sau khi kết nối lại
+                    setTimeout(() => {
+                        if (window.api && typeof window.api.re_login === 'function') {
+                            window.api.re_login(currentUser, reLoginCode);
+                            console.log('✅ Sent RE_LOGIN after reconnection');
+                        }
+                    }, 1000);
+                }
+            }, 2000);
         }
     });
 
@@ -3153,21 +3235,46 @@ function disconnectWs() {
 function _sendOnChat(eventName, payload) {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
         console.warn('WebSocket not open. Call connectWs(url) first.');
-        return;
+        return false;
     }
     const msg = { action: 'onchat', data: { event: eventName, data: payload } };
     ws.send(JSON.stringify(msg));
-    console.log('Sent', msg);
+    console.log('📤 Sent:', eventName, payload);
+    return true;
+}
+
+// Hàm riêng cho LOGOUT (không có data field)
+function _sendOnChatNoData(eventName) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        console.warn('WebSocket not open. Call connectWs(url) first.');
+        return false;
+    }
+    const msg = { action: 'onchat', data: { event: eventName } };
+    ws.send(JSON.stringify(msg));
+    console.log('📤 Sent:', eventName);
+    return true;
 }
 
 // Convenience API wrappers based on the provided examples
 const api = {
     connect: connectWs,
     disconnect: disconnectWs,
-    register: (user, pass) => _sendOnChat('REGISTER', { user, pass }),
-    login: (user, pass) => _sendOnChat('LOGIN', { user, pass }),
-    re_login: (user, code) => _sendOnChat('RE_LOGIN', { user, code }),
-    logout: () => _sendOnChat('LOGOUT', {}),
+    register: (user, pass) => {
+        console.log('🔐 Calling REGISTER API...');
+        return _sendOnChat('REGISTER', { user, pass });
+    },
+    login: (user, pass) => {
+        console.log('🔐 Calling LOGIN API...');
+        return _sendOnChat('LOGIN', { user, pass });
+    },
+    re_login: (user, code) => {
+        console.log('🔄 Calling RE_LOGIN API...');
+        return _sendOnChat('RE_LOGIN', { user, code });
+    },
+    logout: () => {
+        console.log('🚪 Calling LOGOUT API...');
+        return _sendOnChatNoData('LOGOUT');
+    },
     createRoom: (name) => _sendOnChat('CREATE_ROOM', { name }),
     joinRoom: (name) => _sendOnChat('JOIN_ROOM', { name }),
     getRoomChatMes: (name, page = 1) => _sendOnChat('GET_ROOM_CHAT_MES', { name, page }),
