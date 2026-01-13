@@ -9,7 +9,7 @@ const mockData = [
         online: true,
         unread: 1,
         messages: [
-            { id: 1, sender: 'them', text: 'Chào bạn!', time: '10:00', reactions: [] }
+            { id: 1, sender: 'them', text: 'Chào bạn!', time: '10:00' }
         ]
     },
     {
@@ -21,7 +21,7 @@ const mockData = [
         online: false,
         unread: 0,
         messages: [
-            { id: 1, sender: 'them', text: 'Hẹn gặp lại!', time: '09:30', reactions: [] }
+            { id: 1, sender: 'them', text: 'Hẹn gặp lại!', time: '09:30' }
         ]
     },
     {
@@ -33,7 +33,7 @@ const mockData = [
         online: true,
         unread: 0,
         messages: [
-            { id: 1, sender: 'them', text: 'OK nhé!', time: '09:00', reactions: [] }
+            { id: 1, sender: 'them', text: 'OK nhé!', time: '09:00' }
         ]
     }
 ];
@@ -46,8 +46,6 @@ let mentionStartIndex = -1;
 let mentionSearch = "";
 let conversationFilter = "all";
 let activeCategoryFilters = new Set();
-let replyingMessage = null;
-let hideActionsTimer = null;
 
 // DOM Elements
 const conversationsList = document.getElementById('conversationsList');
@@ -165,7 +163,6 @@ const AUTH_CURRENT_KEY = 'appChat_currentUser';
 const AUTH_RELOGIN_CODE_KEY = 'appChat_reloginCode';
 const CHATS_KEY_PREFIX = 'appChat_chats_';
 const GROUP_NOTIF_KEY = 'appChat_groupNotifications';
-const SHOW_HIDDEN_KEY = 'appChat_showHiddenChats';
 
 function isGroupNotificationEnabled() {
     const v = localStorage.getItem(GROUP_NOTIF_KEY);
@@ -176,16 +173,6 @@ function isGroupNotificationEnabled() {
 
 function setGroupNotificationEnabled(enabled) {
     localStorage.setItem(GROUP_NOTIF_KEY, enabled ? '1' : '0');
-}
-
-function isShowHiddenChats() {
-    const v = localStorage.getItem(SHOW_HIDDEN_KEY);
-    if (v === null) return false;
-    return v === '1';
-}
-
-function setShowHiddenChats(enabled) {
-    localStorage.setItem(SHOW_HIDDEN_KEY, enabled ? '1' : '0');
 }
 
 // ===== FAKE API LAYER =====
@@ -686,7 +673,7 @@ function renderConversations(chats) {
                         <span class="name-text">${chat.name}</span>
                         ${chat.unread > 0 ? `<span class="badge-unread">${chat.unread}</span>` : ''}
                     </span>
-                    <span class="conversation-time">${chat.timestamp ? formatTimestamp(chat.timestamp) : ''}</span>
+                    <span class="conversation-menu-icon" style="display:none; cursor:pointer;">⋯</span>
                 </div>
                 <div class="conversation-meta">
                     ${category ? `
@@ -700,19 +687,20 @@ function renderConversations(chats) {
             ${chat.online ? '<div class="online-badge"></div>' : ''}
         `;
 
-        // Tạo context menu cho right-click trên avatar
+        // tạo menu popup
         const menu = document.createElement('div');
-        menu.className = 'context-menu';
+        menu.className = 'conv-menu';
         menu.style.cssText = `
             display:none;
-            position:fixed;
+            position:absolute;
+            right:10px;
+            top:35px;
             background:white;
             border:1px solid #ddd;
-            border-radius:8px;
-            padding:4px 0;
-            box-shadow:0 4px 12px rgba(0,0,0,0.15);
-            z-index:9999;
-            min-width:180px;
+            border-radius:6px;
+            padding:6px 10px;
+            cursor:pointer;
+            z-index:10;
         `;
         menu.innerHTML = `
             <div class="conv-menu-item delete">Xóa hội thoại</div>
@@ -734,10 +722,8 @@ function renderConversations(chats) {
             menuIcon.style.display = 'none';
         });
 
-        // Right-click trên avatar để mở context menu
-        const avatar = div.querySelector('.conversation-avatar');
-        avatar.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
+        // click icon mở menu
+        menuIcon.addEventListener('click', (e) => {
             e.stopPropagation();
             menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
         });
@@ -759,31 +745,6 @@ function renderConversations(chats) {
                 renderConversations(allChats);
                 return;
             }
-            
-            // Restore messages
-            else if (target.classList.contains('restore-messages')) {
-                e.stopPropagation();
-                
-                if (!chat.hiddenMessages || chat.hiddenMessages.length === 0) {
-                    menu.style.display = 'none';
-                    return;
-                }
-                
-                if (!confirm(`Khôi phục tin nhắn với ${chat.name}?`)) {
-                    menu.style.display = 'none';
-                    return;
-                }
-                
-                // Khôi phục từ backup
-                chat.messages = [...chat.hiddenMessages];
-                chat.hiddenMessages = [];
-                
-                // Cập nhật lastMessage từ tin nhắn cuối
-                if (chat.messages.length > 0) {
-                    const lastMsg = chat.messages[chat.messages.length - 1];
-                    chat.lastMessage = lastMsg.text || lastMsg.image || 'Tin nhắn';
-                }
-                chat.timestamp = 'Bây giờ';
 
             // mo popup 2 phan loaii
             if (e.target.closest('.classify')) {
@@ -796,14 +757,7 @@ function renderConversations(chats) {
             }
         });
 
-        div.addEventListener('click', () => {
-            openChat(chat);
-            // Nếu là nhóm, mở ngay panel thông tin sang tab 'members'
-            if (chat && chat.isGroup) {
-                // nhỏ delay để đảm bảo currentChat đã được cập nhật và UI render xong
-                setTimeout(() => openChangeAvatarModal('members'), 60);
-            }
-        });
+        div.addEventListener('click', () => openChat(chat));
         conversationsList.appendChild(div);
     });
 }
@@ -984,7 +938,7 @@ function setUserActive(chat) {
 
 
 // Open info panel (shows group avatar controls when current chat is a group)
-function openChangeAvatarModal(defaultTab) {
+function openChangeAvatarModal() {
     try {
         console.log('openChangeAvatarModal called', { currentChat });
         const currentUser = getCurrentUser();
@@ -1111,23 +1065,7 @@ function openChangeAvatarModal(defaultTab) {
 
             row.appendChild(left);
             row.appendChild(removeBtn);
-                membersList.appendChild(row);
-
-                // Khi click vào hàng thành viên, cuộn đến vị trí và làm nổi bật (trừ khi click vào nút Xóa/Rời)
-                row.addEventListener('click', (e) => {
-                    if (e.target && (e.target === removeBtn || e.target.closest('.members-remove'))) return;
-                    try {
-                        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        const prevBg = row.style.background;
-                        row.style.transition = 'background 0.35s ease';
-                        row.style.background = '#fff8d6';
-                        setTimeout(() => {
-                            row.style.background = prevBg || '';
-                        }, 1200);
-                    } catch (err) {
-                        console.warn('member row click handler error', err);
-                    }
-                });
+            membersList.appendChild(row);
         });
 
         updateMembersCount((currentChat.members || []).length);
@@ -1287,7 +1225,7 @@ function openChangeAvatarModal(defaultTab) {
             updateMembersCount('-');
         }
     }
-    selectTab(defaultTab || 'avatar');
+    selectTab('avatar');
 
     const closeBtn = document.getElementById('closeInfoPanel');
     const deleteBtn = document.getElementById('deleteGroupBtn');
@@ -1715,47 +1653,41 @@ function renderMessages(messages) {
                     bubble.appendChild(caption);
                 }
             } else {
-                const textDiv = document.createElement('div');
-                textDiv.innerHTML = highlightMentions(msg.text || '');
-                bubble.appendChild(textDiv);
+                bubble.innerHTML = highlightMentions(msg.text || '');
             }
 
-            // ===== actions (reply + menu) =====
-            const actions = document.createElement('div');
-            actions.className = 'message-actions';
+            // icon mneu 3 chấm
+            const icon = document.createElement('div');
+            icon.className = 'message-actions-icon';
+            icon.textContent = '⋯';
+            if (group[0].sender === 'you') {
+                icon.style.right = 'auto';
+            } else {
+                icon.style.left = 'auto';
+            }
+            bubbleWrapper.appendChild(icon);
 
-            // icon trả lời
-            const replyIcon = document.createElement('div');
-            replyIcon.className = 'message-reply-icon';
-            replyIcon.textContent = '❝';
-
-            // icon menu 3 chấm
-            const menuIcon = document.createElement('div');
-            menuIcon.className = 'message-actions-icon';
-            menuIcon.textContent = '⋯';
-
-            actions.appendChild(replyIcon);
-            actions.appendChild(menuIcon);
 
             // menu
             const menu = document.createElement('div');
             menu.className = 'message-actions-menu';
             menu.innerHTML = `
-                <div class="react-msg">Thả cảm xúc</div>
                 <div class="copy-msg">Copy</div>
                  <div class="pin-msg">Ghim tin nhắn</div>
                 <div class="recall-msg">Thu hồi</div>
                 <div class="delete-msg">Xóa</div>
             `;
-
-            actions.addEventListener('click', (e) => {
-                e.stopPropagation();
-            });
+            bubbleWrapper.appendChild(menu);
 
             // click icon hiện menu
-            menuIcon.addEventListener('click', (e) => {
+            icon.addEventListener('click', (e) => {
                 e.stopPropagation();
                 menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+            });
+
+            // click ra ngoài đóng menu
+            document.addEventListener('click', () => {
+                menu.style.display = 'none';
             });
 
             // các chức năng menu
@@ -1799,38 +1731,11 @@ function renderMessages(messages) {
                 menu.style.display = 'none';
             });
 
-            // xu ly click reaction
-            menu.querySelector('.react-msg').addEventListener('click', (e) => {
-                e.stopPropagation();
-                menu.style.display = 'none';
-                showReactionPicker(bubbleWrapper, msg, messages);
-            });
-            
-            //xu ly sk reply icon
-            replyIcon.addEventListener('click', (e) => {
-                e.stopPropagation();
-                replyingMessage = {
-                    id: msg.id,
-                    text: msg.text,
-                    sender: msg.sender,
-                    senderName:
-                        msg.sender === 'you'
-                            ? 'Bạn'
-                            : (msg.senderName || currentChat.name)
-                };
-                document.getElementById('replySender').textContent =
-                    msg.sender === 'you'
-                        ? 'Bạn'
-                        : (msg.senderName || currentChat.name);
-                document.getElementById('replyText').textContent =
-                    msg.text || '[Hình ảnh]';
-                document.getElementById('replyBox').style.display = 'flex';
-            });
-
             // Long-press (hold) to show actions menu — supports touch and mouse
             let pressTimer = null;
             const LONG_PRESS_MS = 600;
             const startPress = (e) => {
+                // prevent context menu on long press
                 if (e && e.type === 'touchstart') e.preventDefault();
                 if (pressTimer) clearTimeout(pressTimer);
                 pressTimer = setTimeout(() => {
@@ -1848,102 +1753,15 @@ function renderMessages(messages) {
             bubbleWrapper.addEventListener('mouseup', cancelPress);
             bubbleWrapper.addEventListener('mouseleave', cancelPress);
 
-            // hiển thị reactions
-            if (msg.reactions && msg.reactions.length > 0) {
-                const reactionsDiv = document.createElement('div');
-                reactionsDiv.className = 'message-reactions';
-                reactionsDiv.style.cssText = 'display:flex; gap:4px; flex-wrap:wrap; margin-top:4px; font-size:14px;';
-                
-                // nhóm reactions theo emoji
-                const reactionCounts = {};
-                msg.reactions.forEach(r => {
-                    if (!reactionCounts[r.emoji]) {
-                        reactionCounts[r.emoji] = { count: 0, users: [] };
-                    }
-                    reactionCounts[r.emoji].count++;
-                    reactionCounts[r.emoji].users.push(r.user);
-                });
-                
-                // hiển thị từng emoji với count
-                Object.keys(reactionCounts).forEach(emoji => {
-                    const reactionItem = document.createElement('span');
-                    const cu = getCurrentUser();
-                    const hasReacted = reactionCounts[emoji].users.includes(cu);
-                    reactionItem.className = hasReacted ? 'reaction-item active' : 'reaction-item';
-                    reactionItem.style.cssText = `
-                        padding:2px 6px;
-                        border-radius:12px;
-                        background:${hasReacted ? '#e7f3ff' : '#f0f0f0'};
-                        border:${hasReacted ? '1px solid #0a66c2' : '1px solid transparent'};
-                        cursor:pointer;
-                        display:flex;
-                        align-items:center;
-                        gap:2px;
-                        transition:all 0.2s;
-                    `;
-                    reactionItem.innerHTML = `${emoji} ${reactionCounts[emoji].count}`;
-                    reactionItem.title = reactionCounts[emoji].users.join(', ');
-                    
-                    // click để thêm/xóa reaction
-                    reactionItem.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        toggleReaction(msg, emoji, messages);
-                    });
-                    
-                    reactionsDiv.appendChild(reactionItem);
-                });
-                
-                // nút thêm reaction
-                const addReactionBtn = document.createElement('span');
-                addReactionBtn.className = 'add-reaction-btn';
-                addReactionBtn.style.cssText = `
-                    padding:2px 6px;
-                    border-radius:12px;
-                    background:#f0f0f0;
-                    cursor:pointer;
-                    font-size:16px;
-                    display:flex;
-                    align-items:center;
-                    transition:all 0.2s;
-                `;
-                addReactionBtn.textContent = '+';
-                addReactionBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    showReactionPicker(bubbleWrapper, msg, messages);
-                });
-                addReactionBtn.addEventListener('mouseenter', () => {
-                    addReactionBtn.style.background = '#e4e6eb';
-                });
-                addReactionBtn.addEventListener('mouseleave', () => {
-                    addReactionBtn.style.background = '#f0f0f0';
-                });
-                
-                reactionsDiv.appendChild(addReactionBtn);
-                bubbleWrapper.appendChild(reactionsDiv);
-            }
-
             bubbleWrapper.addEventListener('mouseenter', () => {
-                actions.style.display = 'flex';
-                if (hideActionsTimer) {
-                    clearTimeout(hideActionsTimer);
-                    hideActionsTimer = null;
-                }
-            });
-            actions.addEventListener('mouseleave', () => {
-                hideActionsTimer = setTimeout(() => {
-                    actions.style.display = 'none';
-                }, 1000);
-            });
-            actions.addEventListener('mouseenter', () => {
-                if (hideActionsTimer) {
-                    clearTimeout(hideActionsTimer);
-                    hideActionsTimer = null;
-                }
+                icon.style.display = 'block'; // hiện icon
+                if (icon.hideTimeout) clearTimeout(icon.hideTimeout);
+                icon.hideTimeout = setTimeout(() => {
+                    icon.style.display = 'none'; // 2 giây sau ẩn
+                }, 800);
             });
 
             bubbleWrapper.appendChild(bubble);
-            bubbleWrapper.appendChild(actions);
-            bubbleWrapper.appendChild(menu);
             msgDiv.appendChild(bubbleWrapper);
         });
 
@@ -1982,18 +1800,6 @@ function renderMessages(messages) {
     // Scroll to bottom
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
-
-document.addEventListener('click', () => {
-    document.querySelectorAll('.message-actions-menu')
-        .forEach(m => m.style.display = 'none');
-});
-
-// xu ly su kien tat khung reply
-const closeReplyBtn = document.getElementById('closeReply');
-closeReplyBtn.addEventListener('click', () => {
-    replyingMessage = null;
-    document.getElementById('replyBox').style.display = 'none';
-});
 
 //ham ghim tin nhan
 function renderPinnedMessage() {
@@ -2159,15 +1965,7 @@ function sendMessage() {
         date: now.toISOString().split("T")[0],
         fullTime: new Date().toISOString(),
         status: 'sending', // trạng thái mới
-        isGroup: currentChat.type === 'group',
-        replyTo: replyingMessage
-            ? {
-                id: replyingMessage.id,
-                senderId: replyingMessage.sender,
-                senderName: replyingMessage.senderName,
-                text: replyingMessage.text
-            }
-            : null
+        isGroup: currentChat.type === 'group'
     };
 
     //xu ly tag trong group
@@ -2178,10 +1976,6 @@ function sendMessage() {
     }
 
     currentChat.messages.push(msg);
-
-    replyingMessage = null;
-    const replyBox = document.getElementById('replyBox');
-    if (replyBox) replyBox.style.display = 'none';
 
     currentChat.lastMessage = text;
     currentChat.timestamp = 'Bây giờ';
@@ -2689,234 +2483,6 @@ darkModeToggle.addEventListener("click", () => {
     }
 });
 
-// ========================================
-// VOICE RECORDING SYSTEM
-// ========================================
-let mediaRecorder = null;
-let audioChunks = [];
-let recordingTimer = null;
-let recordingStartTime = 0;
-let currentAudioBlob = null;
-
-const voiceRecordBtn = document.getElementById('voiceRecordBtn');
-const recordingStatus = document.getElementById('recordingStatus');
-const recordingTime = document.getElementById('recordingTime');
-const cancelRecordBtn = document.getElementById('cancelRecordBtn');
-const sendVoiceBtn = document.getElementById('sendVoiceBtn');
-const messageInputArea = document.querySelector('.message-input-area');
-
-// Initialize voice recording
-function initVoiceRecording() {
-    if (!voiceRecordBtn) return;
-
-    voiceRecordBtn.addEventListener('click', startRecording);
-    cancelRecordBtn.addEventListener('click', cancelRecording);
-    sendVoiceBtn.addEventListener('click', sendVoiceMessage);
-}
-
-async function startRecording() {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        
-        // Create MediaRecorder
-        mediaRecorder = new MediaRecorder(stream);
-        audioChunks = [];
-        
-        mediaRecorder.addEventListener('dataavailable', event => {
-            audioChunks.push(event.data);
-        });
-        
-        mediaRecorder.addEventListener('stop', () => {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            currentAudioBlob = audioBlob;
-            
-            // Stop all tracks
-            stream.getTracks().forEach(track => track.stop());
-        });
-        
-        // Start recording
-        mediaRecorder.start();
-        recordingStartTime = Date.now();
-        
-        // Show recording UI
-        messageInputArea.style.display = 'none';
-        recordingStatus.style.display = 'flex';
-        
-        // Start timer
-        updateRecordingTime();
-        recordingTimer = setInterval(updateRecordingTime, 1000);
-        
-        console.log('Recording started');
-        
-    } catch (error) {
-        console.error('Error accessing microphone:', error);
-        alert('Không thể truy cập microphone. Vui lòng cho phép truy cập trong cài đặt trình duyệt.');
-    }
-}
-
-function updateRecordingTime() {
-    const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
-    const minutes = Math.floor(elapsed / 60);
-    const seconds = elapsed % 60;
-    recordingTime.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-}
-
-function cancelRecording() {
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop();
-    }
-    
-    clearInterval(recordingTimer);
-    audioChunks = [];
-    currentAudioBlob = null;
-    
-    // Hide recording UI
-    recordingStatus.style.display = 'none';
-    messageInputArea.style.display = 'flex';
-    
-    console.log('Recording cancelled');
-}
-
-function sendVoiceMessage() {
-    if (!currentChat || !currentAudioBlob) return;
-    
-    // Stop recording
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop();
-    }
-    
-    clearInterval(recordingTimer);
-    
-    // Convert blob to base64 for storage
-    const reader = new FileReader();
-    reader.onloadend = function() {
-        const base64Audio = reader.result;
-        const duration = Math.floor((Date.now() - recordingStartTime) / 1000);
-        
-        const now = new Date();
-        
-        // Create voice message
-        const message = {
-            id: Date.now(),
-            sender: 'you',
-            type: 'voice',
-            audio: base64Audio,
-            duration: duration,
-            time: now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-            date: now.toISOString().split("T")[0],
-            fullTime: now.toISOString(),
-            reactions: [],
-            isGroup: currentChat.type === 'group'
-        };
-        
-        currentChat.messages.push(message);
-        
-        // Update last message
-        currentChat.lastMessage = '🎤 Tin nhắn thoại';
-        currentChat.timestamp = Date.now();
-        
-        // Save and render
-        saveUserChats(getCurrentUser(), allChats);
-        renderMessages(currentChat.messages);
-        renderConversations(allChats);
-        
-        // Reset UI
-        recordingStatus.style.display = 'none';
-        messageInputArea.style.display = 'flex';
-        currentAudioBlob = null;
-        
-        console.log('Voice message sent');
-    };
-    
-    reader.readAsDataURL(currentAudioBlob);
-}
-
-// Initialize voice recording on load
-initVoiceRecording();
-
-// ========================================
-// VOICE MESSAGE UI
-// ========================================
-function createVoiceMessageElement(msg) {
-    const voiceDiv = document.createElement('div');
-    voiceDiv.className = 'voice-message';
-    
-    // Play button
-    const playBtn = document.createElement('button');
-    playBtn.className = 'voice-play-btn';
-    playBtn.innerHTML = '<i class="fas fa-play"></i>';
-    
-    // Waveform visualization
-    const waveform = document.createElement('div');
-    waveform.className = 'voice-waveform';
-    
-    // Create random bars for waveform effect
-    const barCount = 20;
-    for (let i = 0; i < barCount; i++) {
-        const bar = document.createElement('div');
-        bar.className = 'voice-bar';
-        const height = 10 + Math.random() * 30;
-        bar.style.height = height + 'px';
-        waveform.appendChild(bar);
-    }
-    
-    // Duration
-    const duration = document.createElement('span');
-    duration.className = 'voice-duration';
-    const mins = Math.floor(msg.duration / 60);
-    const secs = msg.duration % 60;
-    duration.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
-    
-    // Hidden audio element
-    const audio = document.createElement('audio');
-    audio.className = 'hidden-audio';
-    audio.src = msg.audio;
-    audio.preload = 'metadata';
-    
-    // Play/Pause functionality
-    let isPlaying = false;
-    playBtn.addEventListener('click', () => {
-        if (isPlaying) {
-            audio.pause();
-            playBtn.innerHTML = '<i class="fas fa-play"></i>';
-            voiceDiv.classList.remove('playing');
-            isPlaying = false;
-        } else {
-            audio.play();
-            playBtn.innerHTML = '<i class="fas fa-pause"></i>';
-            voiceDiv.classList.add('playing');
-            isPlaying = true;
-        }
-    });
-    
-    // Update duration while playing
-    audio.addEventListener('timeupdate', () => {
-        const currentTime = audio.currentTime;
-        const mins = Math.floor(currentTime / 60);
-        const secs = Math.floor(currentTime % 60);
-        duration.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
-    });
-    
-    // Reset when ended
-    audio.addEventListener('ended', () => {
-        playBtn.innerHTML = '<i class="fas fa-play"></i>';
-        voiceDiv.classList.remove('playing');
-        isPlaying = false;
-        
-        // Reset duration display
-        const mins = Math.floor(msg.duration / 60);
-        const secs = msg.duration % 60;
-        duration.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
-    });
-    
-    voiceDiv.appendChild(playBtn);
-    voiceDiv.appendChild(waveform);
-    voiceDiv.appendChild(duration);
-    voiceDiv.appendChild(audio);
-    
-    return voiceDiv;
-}
-
 
 // -----------------------------
 // WebSocket & API helper
@@ -3183,113 +2749,207 @@ if (document.readyState === 'loading') {
     initCallButtons();
 }
 
-// ===== REACTION FUNCTIONS =====
-function showReactionPicker(parentElement, msg, messages) {
-    // Xóa picker cũ nếu có
-    const oldPicker = document.querySelector('.reaction-picker');
-    if (oldPicker) oldPicker.remove();
-    
-    const picker = document.createElement('div');
-    picker.className = 'reaction-picker';
-    picker.style.cssText = `
-        position: absolute;
-        bottom: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        background: white;
-        border: 1px solid #e5e5e5;
-        border-radius: 24px;
-        padding: 8px 12px;
-        display: flex;
-        gap: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        z-index: 1000;
-        margin-bottom: 8px;
-    `;
-    
-    const reactions = ['👍', '❤️', '😂', '😮', '😢', '😡', '🎉'];
-    
-    reactions.forEach(emoji => {
-        const emojiBtn = document.createElement('span');
-        emojiBtn.textContent = emoji;
-        emojiBtn.style.cssText = `
-            font-size: 24px;
-            cursor: pointer;
-            padding: 4px;
-            border-radius: 50%;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        `;
-        
-        emojiBtn.addEventListener('mouseenter', () => {
-            emojiBtn.style.transform = 'scale(1.3)';
-            emojiBtn.style.background = '#f0f0f0';
-        });
-        
-        emojiBtn.addEventListener('mouseleave', () => {
-            emojiBtn.style.transform = 'scale(1)';
-            emojiBtn.style.background = 'transparent';
-        });
-        
-        emojiBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            toggleReaction(msg, emoji, messages);
-            picker.remove();
-        });
-        
-        picker.appendChild(emojiBtn);
-    });
-    
-    parentElement.appendChild(picker);
-    
-    // Tự động đóng khi click ra ngoài
-    setTimeout(() => {
-        const closeHandler = (e) => {
-            if (!picker.contains(e.target)) {
-                picker.remove();
-                document.removeEventListener('click', closeHandler);
-            }
-        };
-        document.addEventListener('click', closeHandler);
-    }, 100);
+// ========================================
+// VOICE RECORDING SYSTEM
+// ========================================
+let mediaRecorder = null;
+let audioChunks = [];
+let recordingTimer = null;
+let recordingStartTime = 0;
+let currentAudioBlob = null;
+
+const voiceRecordBtn = document.getElementById('voiceRecordBtn');
+const recordingStatus = document.getElementById('recordingStatus');
+const recordingTime = document.getElementById('recordingTime');
+const cancelRecordBtn = document.getElementById('cancelRecordBtn');
+const sendVoiceBtn = document.getElementById('sendVoiceBtn');
+const messageInputArea = document.querySelector('.message-input-area');
+
+// Initialize voice recording
+function initVoiceRecording() {
+    if (!voiceRecordBtn) return;
+
+    voiceRecordBtn.addEventListener('click', startRecording);
+    if (cancelRecordBtn) cancelRecordBtn.addEventListener('click', cancelRecording);
+    if (sendVoiceBtn) sendVoiceBtn.addEventListener('click', sendVoiceMessage);
 }
 
-function toggleReaction(msg, emoji, messages) {
-    const cu = getCurrentUser();
-    if (!cu) return;
-    
-    // Khởi tạo reactions array nếu chưa có
-    if (!msg.reactions) {
-        msg.reactions = [];
-    }
-    
-    // Kiểm tra xem user đã react emoji này chưa
-    const existingIndex = msg.reactions.findIndex(r => r.user === cu && r.emoji === emoji);
-    
-    if (existingIndex > -1) {
-        // Đã react rồi thì xóa
-        msg.reactions.splice(existingIndex, 1);
-    } else {
-        // Chưa react thì thêm mới
-        msg.reactions.push({
-            user: cu,
-            emoji: emoji,
-            timestamp: new Date().toISOString()
+async function startRecording() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+        
+        mediaRecorder.addEventListener('dataavailable', event => {
+            audioChunks.push(event.data);
         });
-    }
-    
-    // Lưu lại và render lại
-    saveUserChats(cu, allChats);
-    renderMessages(messages);
-    
-    // Fake API call
-    if (fakeApiEnabled) {
-        console.log('📤 FAKE API: TOGGLE_REACTION', { 
-            messageId: msg.id, 
-            emoji, 
-            action: existingIndex > -1 ? 'remove' : 'add' 
+        
+        mediaRecorder.addEventListener('stop', () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            currentAudioBlob = audioBlob;
+            stream.getTracks().forEach(track => track.stop());
         });
+        
+        mediaRecorder.start();
+        recordingStartTime = Date.now();
+        
+        if (messageInputArea) messageInputArea.style.display = 'none';
+        if (recordingStatus) recordingStatus.style.display = 'flex';
+        
+        updateRecordingTime();
+        recordingTimer = setInterval(updateRecordingTime, 1000);
+        
+        console.log('Recording started');
+        
+    } catch (error) {
+        console.error('Error accessing microphone:', error);
+        alert('Không thể truy cập microphone. Vui lòng cho phép truy cập trong cài đặt trình duyệt.');
     }
+}
+
+function updateRecordingTime() {
+    if (!recordingTime) return;
+    const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+    const minutes = Math.floor(elapsed / 60);
+    const seconds = elapsed % 60;
+    recordingTime.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function cancelRecording() {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+    }
+    
+    clearInterval(recordingTimer);
+    audioChunks = [];
+    currentAudioBlob = null;
+    
+    if (recordingStatus) recordingStatus.style.display = 'none';
+    if (messageInputArea) messageInputArea.style.display = 'flex';
+    
+    console.log('Recording cancelled');
+}
+
+function sendVoiceMessage() {
+    if (!currentChat || !currentAudioBlob) return;
+    
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+    }
+    
+    clearInterval(recordingTimer);
+    
+    const reader = new FileReader();
+    reader.onloadend = function() {
+        const base64Audio = reader.result;
+        const duration = Math.floor((Date.now() - recordingStartTime) / 1000);
+        const now = new Date();
+        
+        const message = {
+            id: Date.now(),
+            sender: 'you',
+            type: 'voice',
+            audio: base64Audio,
+            duration: duration,
+            time: now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+            date: now.toISOString().split("T")[0],
+            fullTime: now.toISOString(),
+            reactions: [],
+            isGroup: currentChat.type === 'group'
+        };
+        
+        currentChat.messages.push(message);
+        currentChat.lastMessage = '🎤 Tin nhắn thoại';
+        currentChat.timestamp = Date.now();
+        
+        saveUserChats(getCurrentUser(), allChats);
+        renderMessages(currentChat.messages);
+        renderConversations(allChats);
+        
+        if (recordingStatus) recordingStatus.style.display = 'none';
+        if (messageInputArea) messageInputArea.style.display = 'flex';
+        currentAudioBlob = null;
+        
+        console.log('Voice message sent');
+    };
+    
+    reader.readAsDataURL(currentAudioBlob);
+}
+
+// Initialize voice recording on load
+initVoiceRecording();
+
+// ========================================
+// VOICE MESSAGE UI
+// ========================================
+function createVoiceMessageElement(msg) {
+    const voiceDiv = document.createElement('div');
+    voiceDiv.className = 'voice-message';
+    
+    const playBtn = document.createElement('button');
+    playBtn.className = 'voice-play-btn';
+    playBtn.innerHTML = '<i class="fas fa-play"></i>';
+    
+    const waveform = document.createElement('div');
+    waveform.className = 'voice-waveform';
+    
+    const barCount = 20;
+    for (let i = 0; i < barCount; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'voice-bar';
+        const height = 10 + Math.random() * 30;
+        bar.style.height = height + 'px';
+        waveform.appendChild(bar);
+    }
+    
+    const duration = document.createElement('span');
+    duration.className = 'voice-duration';
+    const mins = Math.floor(msg.duration / 60);
+    const secs = msg.duration % 60;
+    duration.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+    
+    const audio = document.createElement('audio');
+    audio.className = 'hidden-audio';
+    audio.src = msg.audio;
+    audio.preload = 'metadata';
+    
+    let isPlaying = false;
+    playBtn.addEventListener('click', () => {
+        if (isPlaying) {
+            audio.pause();
+            playBtn.innerHTML = '<i class="fas fa-play"></i>';
+            voiceDiv.classList.remove('playing');
+            isPlaying = false;
+        } else {
+            audio.play();
+            playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+            voiceDiv.classList.add('playing');
+            isPlaying = true;
+        }
+    });
+    
+    audio.addEventListener('timeupdate', () => {
+        const currentTime = audio.currentTime;
+        const mins = Math.floor(currentTime / 60);
+        const secs = Math.floor(currentTime % 60);
+        duration.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+    });
+    
+    audio.addEventListener('ended', () => {
+        playBtn.innerHTML = '<i class="fas fa-play"></i>';
+        voiceDiv.classList.remove('playing');
+        isPlaying = false;
+        
+        const mins = Math.floor(msg.duration / 60);
+        const secs = msg.duration % 60;
+        duration.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+    });
+    
+    voiceDiv.appendChild(playBtn);
+    voiceDiv.appendChild(waveform);
+    voiceDiv.appendChild(duration);
+    voiceDiv.appendChild(audio);
+    
+    return voiceDiv;
 }
