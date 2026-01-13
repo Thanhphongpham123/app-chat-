@@ -46,6 +46,8 @@ let mentionStartIndex = -1;
 let mentionSearch = "";
 let conversationFilter = "all";
 let activeCategoryFilters = new Set();
+let replyingMessage = null;
+let hideActionsTimer = null;
 
 // DOM Elements
 const conversationsList = document.getElementById('conversationsList');
@@ -163,6 +165,7 @@ const AUTH_CURRENT_KEY = 'appChat_currentUser';
 const AUTH_RELOGIN_CODE_KEY = 'appChat_reloginCode';
 const CHATS_KEY_PREFIX = 'appChat_chats_';
 const GROUP_NOTIF_KEY = 'appChat_groupNotifications';
+const SHOW_HIDDEN_KEY = 'appChat_showHiddenChats';
 
 function isGroupNotificationEnabled() {
     const v = localStorage.getItem(GROUP_NOTIF_KEY);
@@ -173,6 +176,16 @@ function isGroupNotificationEnabled() {
 
 function setGroupNotificationEnabled(enabled) {
     localStorage.setItem(GROUP_NOTIF_KEY, enabled ? '1' : '0');
+}
+
+function isShowHiddenChats() {
+    const v = localStorage.getItem(SHOW_HIDDEN_KEY);
+    if (v === null) return false;
+    return v === '1';
+}
+
+function setShowHiddenChats(enabled) {
+    localStorage.setItem(SHOW_HIDDEN_KEY, enabled ? '1' : '0');
 }
 
 // ===== FAKE API LAYER =====
@@ -673,7 +686,7 @@ function renderConversations(chats) {
                         <span class="name-text">${chat.name}</span>
                         ${chat.unread > 0 ? `<span class="badge-unread">${chat.unread}</span>` : ''}
                     </span>
-                    <span class="conversation-menu-icon" style="display:none; cursor:pointer;">⋯</span>
+                    <span class="conversation-time">${chat.timestamp ? formatTimestamp(chat.timestamp) : ''}</span>
                 </div>
                 <div class="conversation-meta">
                     ${category ? `
@@ -687,20 +700,19 @@ function renderConversations(chats) {
             ${chat.online ? '<div class="online-badge"></div>' : ''}
         `;
 
-        // tạo menu popup
+        // Tạo context menu cho right-click trên avatar
         const menu = document.createElement('div');
-        menu.className = 'conv-menu';
+        menu.className = 'context-menu';
         menu.style.cssText = `
             display:none;
-            position:absolute;
-            right:10px;
-            top:35px;
+            position:fixed;
             background:white;
             border:1px solid #ddd;
-            border-radius:6px;
-            padding:6px 10px;
-            cursor:pointer;
-            z-index:10;
+            border-radius:8px;
+            padding:4px 0;
+            box-shadow:0 4px 12px rgba(0,0,0,0.15);
+            z-index:9999;
+            min-width:180px;
         `;
         menu.innerHTML = `
             <div class="conv-menu-item delete">Xóa hội thoại</div>
@@ -722,8 +734,10 @@ function renderConversations(chats) {
             menuIcon.style.display = 'none';
         });
 
-        // click icon mở menu
-        menuIcon.addEventListener('click', (e) => {
+        // Right-click trên avatar để mở context menu
+        const avatar = div.querySelector('.conversation-avatar');
+        avatar.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
             e.stopPropagation();
             menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
         });
@@ -745,6 +759,31 @@ function renderConversations(chats) {
                 renderConversations(allChats);
                 return;
             }
+            
+            // Restore messages
+            else if (target.classList.contains('restore-messages')) {
+                e.stopPropagation();
+                
+                if (!chat.hiddenMessages || chat.hiddenMessages.length === 0) {
+                    menu.style.display = 'none';
+                    return;
+                }
+                
+                if (!confirm(`Khôi phục tin nhắn với ${chat.name}?`)) {
+                    menu.style.display = 'none';
+                    return;
+                }
+                
+                // Khôi phục từ backup
+                chat.messages = [...chat.hiddenMessages];
+                chat.hiddenMessages = [];
+                
+                // Cập nhật lastMessage từ tin nhắn cuối
+                if (chat.messages.length > 0) {
+                    const lastMsg = chat.messages[chat.messages.length - 1];
+                    chat.lastMessage = lastMsg.text || lastMsg.image || 'Tin nhắn';
+                }
+                chat.timestamp = 'Bây giờ';
 
             // mo popup 2 phan loaii
             if (e.target.closest('.classify')) {
@@ -757,7 +796,14 @@ function renderConversations(chats) {
             }
         });
 
-        div.addEventListener('click', () => openChat(chat));
+        div.addEventListener('click', () => {
+            openChat(chat);
+            // Nếu là nhóm, mở ngay panel thông tin sang tab 'members'
+            if (chat && chat.isGroup) {
+                // nhỏ delay để đảm bảo currentChat đã được cập nhật và UI render xong
+                setTimeout(() => openChangeAvatarModal('members'), 60);
+            }
+        });
         conversationsList.appendChild(div);
     });
 }
@@ -938,7 +984,7 @@ function setUserActive(chat) {
 
 
 // Open info panel (shows group avatar controls when current chat is a group)
-function openChangeAvatarModal() {
+function openChangeAvatarModal(defaultTab) {
     try {
         console.log('openChangeAvatarModal called', { currentChat });
         const currentUser = getCurrentUser();
@@ -1065,7 +1111,23 @@ function openChangeAvatarModal() {
 
             row.appendChild(left);
             row.appendChild(removeBtn);
-            membersList.appendChild(row);
+                membersList.appendChild(row);
+
+                // Khi click vào hàng thành viên, cuộn đến vị trí và làm nổi bật (trừ khi click vào nút Xóa/Rời)
+                row.addEventListener('click', (e) => {
+                    if (e.target && (e.target === removeBtn || e.target.closest('.members-remove'))) return;
+                    try {
+                        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        const prevBg = row.style.background;
+                        row.style.transition = 'background 0.35s ease';
+                        row.style.background = '#fff8d6';
+                        setTimeout(() => {
+                            row.style.background = prevBg || '';
+                        }, 1200);
+                    } catch (err) {
+                        console.warn('member row click handler error', err);
+                    }
+                });
         });
 
         updateMembersCount((currentChat.members || []).length);
@@ -1225,7 +1287,7 @@ function openChangeAvatarModal() {
             updateMembersCount('-');
         }
     }
-    selectTab('avatar');
+    selectTab(defaultTab || 'avatar');
 
     const closeBtn = document.getElementById('closeInfoPanel');
     const deleteBtn = document.getElementById('deleteGroupBtn');
@@ -1595,13 +1657,13 @@ function renderMessages(messages) {
             systemDiv.style.color = '#65676b';
             systemDiv.style.fontSize = '12px';
             systemDiv.style.fontStyle = 'italic';
-            
+
             group.forEach(msg => {
                 const msgText = document.createElement('div');
                 msgText.textContent = msg.text;
                 systemDiv.appendChild(msgText);
             });
-            
+
             messagesContainer.appendChild(systemDiv);
             return;
         }
@@ -1627,6 +1689,7 @@ function renderMessages(messages) {
             const bubbleWrapper = document.createElement('div');
             bubbleWrapper.className = 'message-bubble-wrapper';
             bubbleWrapper.style.position = 'relative';
+            bubbleWrapper.dataset.messageId = msg.id;
 
             const bubble = document.createElement('div');
             bubble.className = 'message-bubble';
@@ -1652,20 +1715,27 @@ function renderMessages(messages) {
                     bubble.appendChild(caption);
                 }
             } else {
-                bubble.innerHTML = highlightMentions(msg.text || '');
+                const textDiv = document.createElement('div');
+                textDiv.innerHTML = highlightMentions(msg.text || '');
+                bubble.appendChild(textDiv);
             }
 
-            // icon mneu 3 chấm
-            const icon = document.createElement('div');
-            icon.className = 'message-actions-icon';
-            icon.textContent = '⋯';
-            if (group[0].sender === 'you') {
-                icon.style.right = 'auto';
-            } else {
-                icon.style.left = 'auto';
-            }
-            bubbleWrapper.appendChild(icon);
+            // ===== actions (reply + menu) =====
+            const actions = document.createElement('div');
+            actions.className = 'message-actions';
 
+            // icon trả lời
+            const replyIcon = document.createElement('div');
+            replyIcon.className = 'message-reply-icon';
+            replyIcon.textContent = '❝';
+
+            // icon menu 3 chấm
+            const menuIcon = document.createElement('div');
+            menuIcon.className = 'message-actions-icon';
+            menuIcon.textContent = '⋯';
+
+            actions.appendChild(replyIcon);
+            actions.appendChild(menuIcon);
 
             // menu
             const menu = document.createElement('div');
@@ -1677,17 +1747,15 @@ function renderMessages(messages) {
                 <div class="recall-msg">Thu hồi</div>
                 <div class="delete-msg">Xóa</div>
             `;
-            bubbleWrapper.appendChild(menu);
 
-            // click icon hiện menu
-            icon.addEventListener('click', (e) => {
+            actions.addEventListener('click', (e) => {
                 e.stopPropagation();
-                menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
             });
 
-            // click ra ngoài đóng menu
-            document.addEventListener('click', () => {
-                menu.style.display = 'none';
+            // click icon hiện menu
+            menuIcon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
             });
 
             // các chức năng menu
@@ -1737,12 +1805,32 @@ function renderMessages(messages) {
                 menu.style.display = 'none';
                 showReactionPicker(bubbleWrapper, msg, messages);
             });
+            
+            //xu ly sk reply icon
+            replyIcon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                replyingMessage = {
+                    id: msg.id,
+                    text: msg.text,
+                    sender: msg.sender,
+                    senderName:
+                        msg.sender === 'you'
+                            ? 'Bạn'
+                            : (msg.senderName || currentChat.name)
+                };
+                document.getElementById('replySender').textContent =
+                    msg.sender === 'you'
+                        ? 'Bạn'
+                        : (msg.senderName || currentChat.name);
+                document.getElementById('replyText').textContent =
+                    msg.text || '[Hình ảnh]';
+                document.getElementById('replyBox').style.display = 'flex';
+            });
 
             // Long-press (hold) to show actions menu — supports touch and mouse
             let pressTimer = null;
             const LONG_PRESS_MS = 600;
             const startPress = (e) => {
-                // prevent context menu on long press
                 if (e && e.type === 'touchstart') e.preventDefault();
                 if (pressTimer) clearTimeout(pressTimer);
                 pressTimer = setTimeout(() => {
@@ -1835,14 +1923,27 @@ function renderMessages(messages) {
             }
 
             bubbleWrapper.addEventListener('mouseenter', () => {
-                icon.style.display = 'block'; // hiện icon
-                if (icon.hideTimeout) clearTimeout(icon.hideTimeout);
-                icon.hideTimeout = setTimeout(() => {
-                    icon.style.display = 'none'; // 2 giây sau ẩn
-                }, 800);
+                actions.style.display = 'flex';
+                if (hideActionsTimer) {
+                    clearTimeout(hideActionsTimer);
+                    hideActionsTimer = null;
+                }
+            });
+            actions.addEventListener('mouseleave', () => {
+                hideActionsTimer = setTimeout(() => {
+                    actions.style.display = 'none';
+                }, 1000);
+            });
+            actions.addEventListener('mouseenter', () => {
+                if (hideActionsTimer) {
+                    clearTimeout(hideActionsTimer);
+                    hideActionsTimer = null;
+                }
             });
 
             bubbleWrapper.appendChild(bubble);
+            bubbleWrapper.appendChild(actions);
+            bubbleWrapper.appendChild(menu);
             msgDiv.appendChild(bubbleWrapper);
         });
 
@@ -1882,6 +1983,18 @@ function renderMessages(messages) {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
+document.addEventListener('click', () => {
+    document.querySelectorAll('.message-actions-menu')
+        .forEach(m => m.style.display = 'none');
+});
+
+// xu ly su kien tat khung reply
+const closeReplyBtn = document.getElementById('closeReply');
+closeReplyBtn.addEventListener('click', () => {
+    replyingMessage = null;
+    document.getElementById('replyBox').style.display = 'none';
+});
+
 //ham ghim tin nhan
 function renderPinnedMessage() {
     const box = document.getElementById('pinnedMessageBox');
@@ -1894,9 +2007,11 @@ function renderPinnedMessage() {
         return;
     }
     content.innerHTML = `
-        <span class="pin-icon">📌</span>
-        <b>${pinned.senderName}:</b>
-        ${pinned.text || '[Hình ảnh]'}
+        <div class="pinned-click" data-id="${pinned.id}">
+            <span class="pin-icon">📌</span>
+            <b>${pinned.senderName}:</b>
+            ${pinned.text || '[Hình ảnh]'}
+        </div>
     `;
     box.style.display = 'block';
 }
@@ -1929,6 +2044,30 @@ function initPinnedMenu() {
     // nhan ra ngoai dong popup
     document.addEventListener('click', () => {
         pinnedMenu.style.display = 'none';
+    });
+}
+
+//ham su kien khi nhan vao tin nhan da ghim se scroll den tin nhan
+function initPinnedScroll() {
+    document.addEventListener('click', (e) => {
+        const pinned = e.target.closest('.pinned-click');
+        if (!pinned) return;
+        const messageId = pinned.dataset.id;
+        if (!messageId) return;
+        const targetMsg = document.querySelector(
+            `.message-bubble-wrapper[data-message-id="${messageId}"]`
+        );
+        if (!targetMsg) return;
+        // scroll tin nhắn
+        targetMsg.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+        });
+        // highlight khung
+        targetMsg.classList.add('highlight');
+        setTimeout(() => {
+            targetMsg.classList.remove('highlight');
+        }, 2000);
     });
 }
 
@@ -2020,7 +2159,15 @@ function sendMessage() {
         date: now.toISOString().split("T")[0],
         fullTime: new Date().toISOString(),
         status: 'sending', // trạng thái mới
-        isGroup: currentChat.type === 'group'
+        isGroup: currentChat.type === 'group',
+        replyTo: replyingMessage
+            ? {
+                id: replyingMessage.id,
+                senderId: replyingMessage.sender,
+                senderName: replyingMessage.senderName,
+                text: replyingMessage.text
+            }
+            : null
     };
 
     //xu ly tag trong group
@@ -2031,6 +2178,10 @@ function sendMessage() {
     }
 
     currentChat.messages.push(msg);
+
+    replyingMessage = null;
+    const replyBox = document.getElementById('replyBox');
+    if (replyBox) replyBox.style.display = 'none';
 
     currentChat.lastMessage = text;
     currentChat.timestamp = 'Bây giờ';
@@ -2513,6 +2664,9 @@ function closeMention() {
     mentionBox.style.display = "none";
 }
 
+document.addEventListener('DOMContentLoaded', () => {
+    initPinnedScroll();
+});
 initPinnedMenu();
 
 // Start
