@@ -1812,10 +1812,28 @@ function renderMessages(messages) {
             const bubble = document.createElement('div');
             bubble.className = 'message-bubble';
             
+            // Hiển thị nhãn "Tin nhắn được chuyển tiếp" nếu là tin nhắn được chuyển tiếp
+            if (msg.isForwarded) {
+                const forwardedLabel = document.createElement('div');
+                forwardedLabel.className = 'forwarded-label';
+                forwardedLabel.innerHTML = '<i class="fas fa-share"></i> Tin nhắn được chuyển tiếp';
+                bubble.appendChild(forwardedLabel);
+            }
+            
             // Support voice messages
             if (msg.type === 'voice' && msg.audio) {
                 const voiceMsg = createVoiceMessageElement(msg);
                 bubble.appendChild(voiceMsg);
+            }
+            // support sticker messages
+            else if (msg.type === 'sticker' && msg.sticker) {
+                const stickerEl = document.createElement('img');
+                stickerEl.src = msg.sticker;
+                stickerEl.className = 'message-sticker';
+                stickerEl.style.width = '150px';
+                stickerEl.style.height = '150px';
+                stickerEl.style.objectFit = 'contain';
+                bubble.appendChild(stickerEl);
             }
             // support image messages
             else if (msg.image) {
@@ -1832,8 +1850,10 @@ function renderMessages(messages) {
                     caption.textContent = msg.text;
                     bubble.appendChild(caption);
                 }
-            } else {
-                bubble.innerHTML = highlightMentions(msg.text || '');
+            } else if (msg.text) {
+                const textContent = document.createElement('div');
+                textContent.innerHTML = highlightMentions(msg.text);
+                bubble.appendChild(textContent);
             }
 
             // icon mneu 3 chấm
@@ -2069,6 +2089,99 @@ function highlightMentions(text){
     if(!text) return "";
     return text.replace(/@[\p{L}\p{M}0-9_ ]+/gu, match =>
         `<span class="mention">${match.trim()}</span>`);
+}
+
+// ========================================
+// STICKER FUNCTIONALITY
+// ========================================
+const STICKERS = [
+    'https://cdn-icons-png.flaticon.com/512/742/742751.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742752.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742774.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742769.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742920.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742940.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742800.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742804.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742808.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742812.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742831.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742847.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742857.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742864.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742872.png'
+];
+
+function initSticker() {
+    const stickerBtn = document.getElementById('stickerBtn');
+    const stickerPopup = document.getElementById('stickerPopup');
+    
+    if (!stickerBtn || !stickerPopup) return;
+    
+    // Render stickers vào popup
+    stickerPopup.innerHTML = STICKERS.map(url => 
+        `<img src="${url}" class="sticker-item" data-sticker="${url}">`
+    ).join('');
+    
+    // Toggle sticker popup
+    stickerBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isVisible = stickerPopup.style.display === 'block';
+        stickerPopup.style.display = isVisible ? 'none' : 'block';
+        
+        // Đóng emoji popup nếu đang mở
+        const emojiPopup = document.getElementById('emojiPopup');
+        if (emojiPopup) emojiPopup.style.display = 'none';
+    });
+    
+    // Chọn sticker
+    stickerPopup.addEventListener('click', (e) => {
+        const stickerItem = e.target.closest('.sticker-item');
+        if (!stickerItem) return;
+        
+        const stickerUrl = stickerItem.dataset.sticker;
+        sendSticker(stickerUrl);
+        stickerPopup.style.display = 'none';
+    });
+    
+    // Đóng popup khi click ra ngoài
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#stickerBtn') && !e.target.closest('#stickerPopup')) {
+            stickerPopup.style.display = 'none';
+        }
+    });
+}
+
+function sendSticker(stickerUrl) {
+    if (!currentChat) return;
+    
+    const now = new Date();
+    const message = {
+        id: Date.now(),
+        sender: 'you',
+        type: 'sticker',
+        sticker: stickerUrl,
+        time: now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        date: now.toISOString().split('T')[0],
+        fullTime: now.toISOString(),
+        reactions: [],
+        isGroup: currentChat.isGroup
+    };
+    
+    currentChat.messages.push(message);
+    currentChat.lastMessage = '🎨 Sticker';
+    currentChat.timestamp = Date.now();
+    
+    const currentUser = getCurrentUser();
+    if (currentUser) {
+        saveUserChats(currentUser, allChats);
+    }
+    
+    renderMessages(currentChat.messages);
+    renderConversations(allChats);
+    
+    // Scroll to bottom
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
 function retryMessage(msg) {
@@ -2451,6 +2564,10 @@ function attachEvents() {
             sendMessage();
         }
     });
+    
+    // Initialize sticker functionality
+    initSticker();
+    
     let typingTimeout = null;
     messageInput.addEventListener('input', () => {
         if (!currentChat || !currentChat.isGroup) return;
@@ -2757,6 +2874,7 @@ function confirmForward() {
             type: messageToForward.type,
             audio: messageToForward.audio,
             duration: messageToForward.duration,
+            sticker: messageToForward.sticker,
             time: now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
             date: now.toISOString().split("T")[0],
             fullTime: now.toISOString(),
@@ -2770,6 +2888,8 @@ function confirmForward() {
         // Cập nhật tin nhắn cuối và timestamp
         if (messageToForward.type === 'voice') {
             chat.lastMessage = '🎤 Tin nhắn thoại';
+        } else if (messageToForward.type === 'sticker') {
+            chat.lastMessage = '🎨 Sticker';
         } else if (messageToForward.image) {
             chat.lastMessage = '📷 Hình ảnh';
         } else {
