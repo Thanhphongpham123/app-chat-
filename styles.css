@@ -2112,3 +2112,47 @@ body.dark .forwarded-label {
     color: #b0b3b8;
     border-bottom-color: rgba(255, 255, 255, 0.1);
 }
+
+/* Custom Notification */
+.custom-notification {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 99999;
+    display: none;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateX(-50%) translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+}
+
+.notification-content {
+    background: #4caf50;
+    color: #fff;
+    padding: 16px 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.notification-icon {
+    font-size: 20px;
+}
+
+/* Dark mode notification */
+body.dark .notification-content {
+    background: #2e7d32;
+}
