@@ -3596,6 +3596,11 @@ function endCall() {
 // Initialize call buttons when page loads
 document.addEventListener('DOMContentLoaded', () => {
     initCallButtons();
+    
+    // Kết nối WebSocket tự động
+    const WS_URL = 'wss://chat.longapp.site/chat/chat';
+    console.log('🔌 Connecting to WebSocket:', WS_URL);
+    window.api.connect(WS_URL);
 });
 
 // Also initialize in case DOM is already loaded
