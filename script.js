@@ -163,6 +163,7 @@ const AUTH_CURRENT_KEY = 'appChat_currentUser';
 const AUTH_RELOGIN_CODE_KEY = 'appChat_reloginCode';
 const CHATS_KEY_PREFIX = 'appChat_chats_';
 const GROUP_NOTIF_KEY = 'appChat_groupNotifications';
+const SHOW_HIDDEN_KEY = 'appChat_showHiddenChats';
 
 function isGroupNotificationEnabled() {
     const v = localStorage.getItem(GROUP_NOTIF_KEY);
@@ -173,6 +174,16 @@ function isGroupNotificationEnabled() {
 
 function setGroupNotificationEnabled(enabled) {
     localStorage.setItem(GROUP_NOTIF_KEY, enabled ? '1' : '0');
+}
+
+function isShowHiddenChats() {
+    const v = localStorage.getItem(SHOW_HIDDEN_KEY);
+    if (v === null) return false;
+    return v === '1';
+}
+
+function setShowHiddenChats(enabled) {
+    localStorage.setItem(SHOW_HIDDEN_KEY, enabled ? '1' : '0');
 }
 
 // ===== FAKE API LAYER =====
@@ -639,7 +650,7 @@ function renderConversations(chats) {
     conversationsList.innerHTML = '';
 
     //loc theo tag
-    let chatsToRender = chats;
+    let chatsToRender = chats || [];
     if (conversationFilter === "unread") {
         chatsToRender = chatsToRender.filter(c => c.unread > 0);
     }
@@ -660,7 +671,8 @@ function renderConversations(chats) {
     }
 
     // render ds
-    chatsToRender.forEach(chat => {
+    (chatsToRender || []).forEach(chat => {
+        if (!chat) return;
         const div = document.createElement('div');
         div.className = `conversation ${currentChat?.id === chat.id ? 'active' : ''}`;
         div.style.position = 'relative';
@@ -670,84 +682,252 @@ function renderConversations(chats) {
             <div class="conversation-info">
                 <div class="conversation-header">
                     <span class="conversation-name">
-                        <span class="name-text">${chat.name}</span>
+                        ${chat.name}
                         ${chat.unread > 0 ? `<span class="badge-unread">${chat.unread}</span>` : ''}
                     </span>
-                    <span class="conversation-menu-icon" style="display:none; cursor:pointer;">⋯</span>
-                </div>
-                <div class="conversation-meta">
-                    ${category ? `
-                    <span class="category-dot" style="background:${category.color}"></span>` : ''}
-                    <span class="conversation-message ${chat.unread > 0 ? 'unread' : ''}">
-                        ${chat.lastMessage || ''}
-                    </span>
                     <span class="conversation-time">${chat.timestamp ? formatTimestamp(chat.timestamp) : ''}</span>
+                </div>
+                <div class="conversation-message ${chat.unread > 0 ? 'unread' : ''}">
+                    ${chat.lastMessage || ''}
                 </div>
             </div>
             ${chat.online ? '<div class="online-badge"></div>' : ''}
         `;
 
-        // tạo menu popup
+        // Tạo context menu cho right-click trên avatar
         const menu = document.createElement('div');
-        menu.className = 'conv-menu';
+        menu.className = 'context-menu';
         menu.style.cssText = `
             display:none;
-            position:absolute;
-            right:10px;
-            top:35px;
+            position:fixed;
             background:white;
             border:1px solid #ddd;
-            border-radius:6px;
-            padding:6px 10px;
-            cursor:pointer;
-            z-index:10;
+            border-radius:8px;
+            padding:4px 0;
+            box-shadow:0 4px 12px rgba(0,0,0,0.15);
+            z-index:9999;
+            min-width:180px;
         `;
-        menu.innerHTML = `
-            <div class="conv-menu-item delete">Xóa hội thoại</div>
-            <div class="conv-menu-item classify">Phân loại</div>
-        `;
-        div.appendChild(menu);
+        const hasMessages = chat.messages && chat.messages.length > 0;
+        const hasHiddenMessages = chat.hiddenMessages && chat.hiddenMessages.length > 0;
+        
+        let menuHTML = '';
+        if (hasMessages) {
+            menuHTML += `<div class="menu-item hide-messages" style="padding:10px 16px; cursor:pointer; font-size:14px; transition:background 0.15s;">Ẩn tin nhắn</div>`;
+        } else if (hasHiddenMessages) {
+            menuHTML += `<div class="menu-item restore-messages" style="padding:10px 16px; cursor:pointer; font-size:14px; color:#27ae60; transition:background 0.15s;">Khôi phục tin nhắn</div>`;
+        } else {
+            menuHTML += `<div class="menu-item no-action" style="padding:10px 16px; font-size:14px; color:#999; cursor:not-allowed;">Không có tin nhắn</div>`;
+        }
+        menuHTML += `<div class="menu-item delete-chat" style="padding:10px 16px; cursor:pointer; font-size:14px; color:#e74c3c; transition:background 0.15s;">Xóa hội thoại</div>`;
+        menuHTML += `<div class="menu-item classify" style="padding:10px 16px; cursor:pointer; font-size:14px; transition:background 0.15s;">Phân loại</div>`;
+        
+        menu.innerHTML = menuHTML;
+        document.body.appendChild(menu);
 
-        //xu ly hover
-        const timeEl = div.querySelector('.conversation-time');
-        const menuIcon = div.querySelector('.conversation-menu-icon');
-
-        div.addEventListener('mouseenter', () => {
-            timeEl.style.display = 'none';
-            menuIcon.style.display = 'inline';
-        });
-
-        div.addEventListener('mouseleave', () => {
-            timeEl.style.display = 'inline';
-            menuIcon.style.display = 'none';
-        });
-
-        // click icon mở menu
-        menuIcon.addEventListener('click', (e) => {
+        // Right-click trên avatar để mở context menu
+        const avatar = div.querySelector('.conversation-avatar');
+        avatar.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
             e.stopPropagation();
-            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+
+            // Ẩn tất cả menu khác
+            document.querySelectorAll('.context-menu').forEach(m => m.style.display = 'none');
+
+            // Cập nhật menu dựa trên trạng thái hiện tại
+            const hasMessages = chat.messages && chat.messages.length > 0;
+            const hasHiddenMessages = chat.hiddenMessages && chat.hiddenMessages.length > 0;
+
+            let menuHTML = '';
+            if (hasMessages) {
+                menuHTML += `<div class="menu-item hide-messages" style="padding:10px 16px; cursor:pointer; font-size:14px; transition:background 0.15s;">Ẩn tin nhắn</div>`;
+            } else if (hasHiddenMessages) {
+                menuHTML += `<div class="menu-item restore-messages" style="padding:10px 16px; cursor:pointer; font-size:14px; color:#27ae60; transition:background 0.15s;">Khôi phục tin nhắn</div>`;
+            } else {
+                menuHTML += `<div class="menu-item no-action" style="padding:10px 16px; font-size:14px; color:#999; cursor:not-allowed;">Không có tin nhắn</div>`;
+            }
+            menuHTML += `<div class="menu-item delete-chat" style="padding:10px 16px; cursor:pointer; font-size:14px; color:#e74c3c; transition:background 0.15s;">Xóa hội thoại</div>`;
+            menuHTML += `<div class="menu-item classify" style="padding:10px 16px; cursor:pointer; font-size:14px; transition:background 0.15s;">Phân loại</div>`;
+
+            menu.innerHTML = menuHTML;
+
+            // Re-attach hover effects
+            menu.querySelectorAll('.menu-item').forEach(item => {
+                item.addEventListener('mouseenter', () => {
+                    if (item.style.cursor !== 'not-allowed') {
+                        item.style.background = '#f5f5f5';
+                    }
+                });
+                item.addEventListener('mouseleave', () => {
+                    item.style.background = 'transparent';
+                });
+            });
+
+            // Hiển thị menu tại vị trí chuột
+            menu.style.display = 'block';
+            menu.style.left = e.pageX + 'px';
+            menu.style.top = e.pageY + 'px';
+
+            // Đảm bảo menu không bị tràn ra ngoài màn hình
+            const rect = menu.getBoundingClientRect();
+            if (rect.right > window.innerWidth) {
+                menu.style.left = (e.pageX - rect.width) + 'px';
+            }
+            if (rect.bottom > window.innerHeight) {
+                menu.style.top = (e.pageY - rect.height) + 'px';
+            }
         });
 
-        //click mo menu item
+        // Click ra ngoài đóng menu
+        document.addEventListener('click', () => {
+            menu.style.display = 'none';
+        });
+        
+        // Hover effect cho menu items
+        menu.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('mouseenter', () => {
+                if (item.style.cursor !== 'not-allowed') {
+                    item.style.background = '#f5f5f5';
+                }
+            });
+            item.addEventListener('mouseleave', () => {
+                item.style.background = 'transparent';
+            });
+        });
+        
+        // Menu actions using event delegation to support dynamic content
         menu.addEventListener('click', (e) => {
-            e.stopPropagation();
+            const target = e.target.closest('.menu-item');
+            if (!target) return;
 
-            // xóa hội thoại
-            if (e.target.closest('.delete')) {
+            const cu = getCurrentUser();
+            if (!cu) {
+                alert('Vui lòng đăng nhập');
+                return;
+            }
+
+            // Hide messages
+            if (target.classList.contains('hide-messages')) {
+                e.stopPropagation();
+
+                if (!chat.messages || chat.messages.length === 0) {
+                    menu.style.display = 'none';
+                    return;
+                }
+
+                if (!confirm(`Ẩn toàn bộ tin nhắn với ${chat.name}? Bạn có thể khôi phục sau.`)) {
+                    menu.style.display = 'none';
+                    return;
+                }
+
+                // Yêu cầu nhập mật khẩu
+                const password = prompt('Nhập mật khẩu để bảo vệ tin nhắn ẩn:\n(Bạn sẽ cần mật khẩu này để khôi phục tin nhắn)', '');
+                
+                if (password === null) {
+                    menu.style.display = 'none';
+                    return; // Người dùng hủy
+                }
+                
+                if (!password || password.trim() === '') {
+                    alert('Mật khẩu không được để trống!');
+                    menu.style.display = 'none';
+                    return;
+                }
+
+                // Xác nhận mật khẩu
+                const confirmPassword = prompt('Xác nhận lại mật khẩu:', '');
+                
+                if (confirmPassword !== password) {
+                    alert('Mật khẩu xác nhận không khớp!');
+                    menu.style.display = 'none';
+                    return;
+                }
+
+                // Backup tin nhắn trước khi xóa và lưu mật khẩu
+                chat.hiddenMessages = [...chat.messages];
+                chat.hiddenPassword = password; // Lưu mật khẩu
+                chat.messages = [];
+                chat.lastMessage = '🔒 Tin nhắn đã được ẩn và bảo vệ';
+                chat.timestamp = 'Bây giờ';
+                chat.unread = 0;
+
+                if (currentChat && currentChat.id === chat.id) {
+                    renderMessages(chat.messages);
+                }
+
+                saveUserChats(cu, allChats);
+                renderConversations(allChats);
+                menu.style.display = 'none';
+
+                alert('✓ Đã ẩn và bảo vệ tin nhắn bằng mật khẩu!\nNhấp chuột phải vào avatar và nhập mật khẩu để khôi phục.');
+            }
+
+            // Restore messages
+            else if (target.classList.contains('restore-messages')) {
+                e.stopPropagation();
+
+                if (!chat.hiddenMessages || chat.hiddenMessages.length === 0) {
+                    menu.style.display = 'none';
+                    return;
+                }
+
+                // Yêu cầu nhập mật khẩu để khôi phục
+                const inputPassword = prompt(`🔒 Nhập mật khẩu để khôi phục tin nhắn với ${chat.name}:`, '');
+                
+                if (inputPassword === null) {
+                    menu.style.display = 'none';
+                    return; // Người dùng hủy
+                }
+
+                // Kiểm tra mật khẩu
+                if (inputPassword !== chat.hiddenPassword) {
+                    alert('❌ Mật khẩu không đúng! Không thể khôi phục tin nhắn.');
+                    menu.style.display = 'none';
+                    return;
+                }
+
+                // Khôi phục từ backup
+                chat.messages = [...chat.hiddenMessages];
+                chat.hiddenMessages = [];
+                chat.hiddenPassword = null; // Xóa mật khẩu sau khi khôi phục
+
+                // Cập nhật lastMessage từ tin nhắn cuối
+                if (chat.messages.length > 0) {
+                    const lastMsg = chat.messages[chat.messages.length - 1];
+                    chat.lastMessage = lastMsg.text || lastMsg.image || 'Tin nhắn';
+                }
+                chat.timestamp = 'Bây giờ';
+
+                if (currentChat && currentChat.id === chat.id) {
+                    renderMessages(chat.messages);
+                }
+
+                saveUserChats(cu, allChats);
+                renderConversations(allChats);
+                menu.style.display = 'none';
+
+                alert('✓ Đã khôi phục tin nhắn thành công!');
+            }
+
+            // Delete conversation
+            else if (target.classList.contains('delete-chat')) {
+                e.stopPropagation();
                 if (!confirm(`Xóa hội thoại với ${chat.name}?`)) return;
+
                 allChats = allChats.filter(c => c.id !== chat.id);
-                saveUserChats(getCurrentUser(), allChats);
-                if (currentChat?.id === chat.id) {
+                saveUserChats(cu, allChats);
+
+                if (currentChat && currentChat.id === chat.id) {
                     currentChat = null;
                     chatWindow.style.display = 'none';
                     emptyChat.style.display = 'flex';
                 }
+
                 renderConversations(allChats);
-                return;
             }
 
             // mo popup 2 phan loaii
-            if (e.target.closest('.classify')) {
+            else if (target.closest('.classify')) {
                 e.stopPropagation();
                 const rect = menu.getBoundingClientRect();
                 categoryMenu.style.top = rect.top + 'px';
