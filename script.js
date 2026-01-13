@@ -815,7 +815,8 @@ function renderConversations(chats) {
                     return;
                 }
 
-                if (!confirm(`Ẩn toàn bộ tin nhắn với ${chat.name}? Bạn có thể khôi phục sau.`)) {
+                const confirmed = await customConfirm('Ẩn tin nhắn', `Ẩn toàn bộ tin nhắn với ${chat.name}? Bạn có thể khôi phục sau.`);
+                if (!confirmed) {
                     menu.style.display = 'none';
                     return;
                 }
