@@ -1854,6 +1854,7 @@ function renderMessages(messages) {
             menu.innerHTML = `
                 <div class="copy-msg">Copy</div>
                  <div class="pin-msg">Ghim tin nhắn</div>
+                <div class="forward-msg">Chuyển tiếp</div>
                 <div class="recall-msg">Thu hồi</div>
                 <div class="delete-msg">Xóa</div>
             `;
@@ -1891,6 +1892,12 @@ function renderMessages(messages) {
                 renderMessages(messages);
                 const cu = getCurrentUser();
                 if (cu) saveUserChats(cu, allChats);
+                menu.style.display = 'none';
+            });
+
+            //xu ly click chuyen tiep tin nhan
+            menu.querySelector('.forward-msg').addEventListener('click', () => {
+                openForwardModal(msg);
                 menu.style.display = 'none';
             });
 
@@ -2642,6 +2649,189 @@ document.addEventListener('DOMContentLoaded', () => {
     initPinnedScroll();
 });
 initPinnedMenu();
+
+// ========================================
+// FORWARD MESSAGE FUNCTIONALITY
+// ========================================
+let messageToForward = null;
+let selectedForwardChats = new Set();
+
+function openForwardModal(msg) {
+    messageToForward = msg;
+    selectedForwardChats.clear();
+    
+    const modal = document.getElementById('forwardModal');
+    const searchInput = document.getElementById('forwardSearchInput');
+    
+    if (!modal) {
+        console.error('Forward modal not found');
+        return;
+    }
+    
+    modal.style.display = 'flex';
+    if (searchInput) searchInput.value = '';
+    
+    renderForwardConversations(allChats);
+}
+
+function renderForwardConversations(chats) {
+    const container = document.getElementById('forwardConversationsList');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    // Lọc ra các cuộc trò chuyện (trừ cuộc trò chuyện hiện tại)
+    const filteredChats = chats.filter(chat => {
+        if (currentChat && chat.id === currentChat.id) return false;
+        return true;
+    });
+    
+    if (filteredChats.length === 0) {
+        container.innerHTML = '<div style="padding:20px; text-align:center; color:#65676b;">Không có cuộc trò chuyện nào</div>';
+        return;
+    }
+    
+    filteredChats.forEach(chat => {
+        const item = document.createElement('div');
+        item.className = 'forward-conversation-item';
+        if (selectedForwardChats.has(chat.id)) {
+            item.classList.add('selected');
+        }
+        
+        item.innerHTML = `
+            <img src="${chat.avatar}" alt="${chat.name}" class="forward-avatar">
+            <div class="forward-info">
+                <div class="forward-name">${chat.name}</div>
+                ${chat.isGroup ? '<div class="forward-badge">Nhóm</div>' : ''}
+            </div>
+            <div class="forward-checkbox">
+                <i class="fas fa-check"></i>
+            </div>
+        `;
+        
+        item.addEventListener('click', () => {
+            if (selectedForwardChats.has(chat.id)) {
+                selectedForwardChats.delete(chat.id);
+                item.classList.remove('selected');
+            } else {
+                selectedForwardChats.add(chat.id);
+                item.classList.add('selected');
+            }
+        });
+        
+        container.appendChild(item);
+    });
+}
+
+function closeForwardModal() {
+    const modal = document.getElementById('forwardModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    messageToForward = null;
+    selectedForwardChats.clear();
+}
+
+function confirmForward() {
+    if (!messageToForward) return;
+    
+    if (selectedForwardChats.size === 0) {
+        alert('Vui lòng chọn ít nhất một cuộc trò chuyện');
+        return;
+    }
+    
+    const currentUser = getCurrentUser();
+    if (!currentUser) return;
+    
+    // Chuyển tiếp tin nhắn đến các cuộc trò chuyện đã chọn
+    selectedForwardChats.forEach(chatId => {
+        const chat = allChats.find(c => c.id === chatId);
+        if (!chat) return;
+        
+        const now = new Date();
+        const forwardedMessage = {
+            id: Date.now() + Math.random(), // Đảm bảo id unique
+            sender: 'you',
+            text: messageToForward.text || '',
+            image: messageToForward.image,
+            type: messageToForward.type,
+            audio: messageToForward.audio,
+            duration: messageToForward.duration,
+            time: now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+            date: now.toISOString().split("T")[0],
+            fullTime: now.toISOString(),
+            reactions: [],
+            isGroup: chat.isGroup,
+            isForwarded: true // Đánh dấu là tin nhắn được chuyển tiếp
+        };
+        
+        chat.messages.push(forwardedMessage);
+        
+        // Cập nhật tin nhắn cuối và timestamp
+        if (messageToForward.type === 'voice') {
+            chat.lastMessage = '🎤 Tin nhắn thoại';
+        } else if (messageToForward.image) {
+            chat.lastMessage = '📷 Hình ảnh';
+        } else {
+            chat.lastMessage = messageToForward.text || 'Tin nhắn';
+        }
+        chat.timestamp = Date.now();
+    });
+    
+    // Lưu và cập nhật UI
+    saveUserChats(currentUser, allChats);
+    renderConversations(allChats);
+    
+    // Đóng modal và thông báo
+    closeForwardModal();
+    alert(`Đã chuyển tiếp tin nhắn đến ${selectedForwardChats.size} cuộc trò chuyện`);
+}
+
+// Xử lý tìm kiếm trong modal chuyển tiếp
+const forwardSearchInput = document.getElementById('forwardSearchInput');
+if (forwardSearchInput) {
+    forwardSearchInput.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase().trim();
+        
+        if (!searchTerm) {
+            renderForwardConversations(allChats);
+            return;
+        }
+        
+        const filtered = allChats.filter(chat => {
+            return chat.name.toLowerCase().includes(searchTerm);
+        });
+        
+        renderForwardConversations(filtered);
+    });
+}
+
+// Xử lý đóng modal
+const closeForwardBtn = document.getElementById('closeForwardModal');
+const cancelForwardBtn = document.getElementById('cancelForward');
+const confirmForwardBtn = document.getElementById('confirmForward');
+
+if (closeForwardBtn) {
+    closeForwardBtn.addEventListener('click', closeForwardModal);
+}
+
+if (cancelForwardBtn) {
+    cancelForwardBtn.addEventListener('click', closeForwardModal);
+}
+
+if (confirmForwardBtn) {
+    confirmForwardBtn.addEventListener('click', confirmForward);
+}
+
+// Đóng modal khi click vào overlay
+const forwardModal = document.getElementById('forwardModal');
+if (forwardModal) {
+    forwardModal.addEventListener('click', (e) => {
+        if (e.target === forwardModal || e.target.classList.contains('forward-modal-overlay')) {
+            closeForwardModal();
+        }
+    });
+}
 
 // Start
 init();

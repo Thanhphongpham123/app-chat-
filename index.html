@@ -335,6 +335,28 @@
         </div>
     </div>
 
+    <!-- Forward Message Modal -->
+    <div id="forwardModal" class="modal forward-modal" style="display:none;">
+        <div class="forward-modal-overlay"></div>
+        <div class="forward-modal-card">
+            <div class="forward-modal-header">
+                <h3>Chuyển tiếp tin nhắn</h3>
+                <button id="closeForwardModal" class="icon-btn">×</button>
+            </div>
+            <div class="forward-search-box">
+                <i class="fas fa-magnifying-glass"></i>
+                <input type="text" id="forwardSearchInput" placeholder="Tìm kiếm cuộc trò chuyện">
+            </div>
+            <div class="forward-conversations-list" id="forwardConversationsList">
+                <!-- Danh sách cuộc trò chuyện được render bằng JS -->
+            </div>
+            <div class="forward-modal-footer">
+                <button id="cancelForward" class="icon-btn">Hủy</button>
+                <button id="confirmForward" class="icon-btn confirm">Chuyển tiếp</button>
+            </div>
+        </div>
+    </div>
+
 
     <script src="script.js"></script>
     <script>
