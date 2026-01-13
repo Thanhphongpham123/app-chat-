@@ -2904,7 +2904,23 @@ function confirmForward() {
     
     // Đóng modal và thông báo
     closeForwardModal();
-    alert(`Đã chuyển tiếp tin nhắn đến ${selectedForwardChats.size} cuộc trò chuyện`);
+    showNotification('Đã chuyển tiếp tin nhắn thành công');
+}
+
+// Custom notification function
+function showNotification(message) {
+    const notification = document.getElementById('customNotification');
+    const messageEl = document.getElementById('notificationMessage');
+    
+    if (!notification || !messageEl) return;
+    
+    messageEl.textContent = message;
+    notification.style.display = 'flex';
+    
+    // Tự động ẩn sau 3 giây
+    setTimeout(() => {
+        notification.style.display = 'none';
+    }, 3000);
 }
 
 // Xử lý tìm kiếm trong modal chuyển tiếp
