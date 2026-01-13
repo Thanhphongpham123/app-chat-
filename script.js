@@ -313,6 +313,17 @@ function fakeSendChatRoom(to, message) {
 // Fake API: GET_USER_LIST
 function fakeGetUserList() {
     console.log('📤 FAKE API: GET_USER_LIST');
+    
+    // Gửi qua WebSocket nếu có kết nối
+    if (window.api && typeof window.api.getUserList === 'function') {
+        try {
+            window.api.getUserList();
+            console.log('✅ Sent GET_USER_LIST via WebSocket');
+        } catch (error) {
+            console.warn('⚠️ WebSocket GET_USER_LIST failed:', error);
+        }
+    }
+    
     setTimeout(() => {
         const users = loadUsers().map(u => u.user);
         console.log('📥 FAKE API Response: User list', users);
@@ -322,6 +333,17 @@ function fakeGetUserList() {
 // Fake API: CHECK_USER_ONLINE
 function fakeCheckUserOnline(user) {
     console.log('📤 FAKE API: CHECK_USER_ONLINE', { user });
+    
+    // Gửi qua WebSocket nếu có kết nối
+    if (window.api && typeof window.api.checkUserOnline === 'function') {
+        try {
+            window.api.checkUserOnline(user);
+            console.log('✅ Sent CHECK_USER_ONLINE via WebSocket');
+        } catch (error) {
+            console.warn('⚠️ WebSocket CHECK_USER_ONLINE failed:', error);
+        }
+    }
+    
     setTimeout(() => {
         const isOnline = Math.random() > 0.5;
         console.log('📥 FAKE API Response:', user, 'is', isOnline ? 'online' : 'offline');
@@ -331,6 +353,17 @@ function fakeCheckUserOnline(user) {
 // Fake API: CHECK_USER_EXIST
 function fakeCheckUserExist(user) {
     console.log('📤 FAKE API: CHECK_USER_EXIST', { user });
+    
+    // Gửi qua WebSocket nếu có kết nối
+    if (window.api && typeof window.api.checkUserExist === 'function') {
+        try {
+            window.api.checkUserExist(user);
+            console.log('✅ Sent CHECK_USER_EXIST via WebSocket');
+        } catch (error) {
+            console.warn('⚠️ WebSocket CHECK_USER_EXIST failed:', error);
+        }
+    }
+    
     setTimeout(() => {
         const users = loadUsers();
         const exists = users.some(u => u.user === user);
@@ -3392,8 +3425,19 @@ const api = {
         console.log('📨 Calling SEND_CHAT (people) API...');
         return _sendOnChat('SEND_CHAT', { type: 'people', to, mes });
     },
+    checkUserOnline: (user) => {
+        console.log('👤 Calling CHECK_USER_ONLINE API...');
+        return _sendOnChat('CHECK_USER_ONLINE', { user });
+    },
+    checkUserExist: (user) => {
+        console.log('🔍 Calling CHECK_USER_EXIST API...');
+        return _sendOnChat('CHECK_USER_EXIST', { user });
+    },
     checkUser: (user) => _sendOnChat('CHECK_USER', { user }),
-    getUserList: () => _sendOnChat('GET_USER_LIST', {}),
+    getUserList: () => {
+        console.log('📜 Calling GET_USER_LIST API...');
+        return _sendOnChatNoData('GET_USER_LIST');
+    },
     // send arbitrary payload (object) as an onchat action
     sendRaw: (obj) => {
         if (!ws || ws.readyState !== WebSocket.OPEN) {
