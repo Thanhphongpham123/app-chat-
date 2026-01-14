@@ -1694,6 +1694,19 @@ body.dark .auth-card{
 }
 
 /* ========== REACTION STYLES ========== */
+.message-reaction-icon {
+    display: none;
+}
+
+.message-reaction-icon:hover {
+    background: #d8dadf !important;
+    transform: translateY(-50%) scale(1.1) !important;
+}
+
+.message-bubble-wrapper:hover .message-reaction-icon {
+    display: block !important;
+}
+
 .reaction-picker {
     position: absolute;
     bottom: 100%;
