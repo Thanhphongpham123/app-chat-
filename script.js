@@ -106,10 +106,7 @@ function init() {
     if (currentUser) {
         allChats = loadUserChats(currentUser);
         
-        // Tự động RE_LOGIN nếu có code
-        if (reloginCode && fakeApiEnabled) {
-            fakeReLogin(currentUser, reloginCode);
-        }
+        // Tự động RE_LOGIN nếu có code - Đã xóa (sẽ dùng code mới ở cuối file)
     }
 
     renderConversations(allChats);
@@ -187,267 +184,9 @@ function setShowHiddenChats(enabled) {
     localStorage.setItem(SHOW_HIDDEN_KEY, enabled ? '1' : '0');
 }
 
-// ===== FAKE API LAYER =====
-let fakeApiEnabled = true; // Bật fake API
-
-// Fake API: REGISTER
-function fakeRegister(user, pass) {
-    console.log('📤 FAKE API: REGISTER', { user, pass });
-    
-    // Gửi qua WebSocket nếu có kết nối
-    if (window.api && typeof window.api.register === 'function') {
-        try {
-            window.api.register(user, pass);
-            console.log('✅ Sent REGISTER via WebSocket');
-        } catch (error) {
-            console.warn('⚠️ WebSocket REGISTER failed, using fake response:', error);
-        }
-    }
-    
-    setTimeout(() => {
-        console.log('📥 FAKE API Response: REGISTER success');
-        showNotification('Đăng ký thành công!');
-    }, 500);
-}
-
-// Fake API: LOGIN
-function fakeLogin(user, pass) {
-    console.log('📤 FAKE API: LOGIN', { user, pass });
-    
-    // Gửi qua WebSocket nếu có kết nối
-    if (window.api && typeof window.api.login === 'function') {
-        try {
-            window.api.login(user, pass);
-            console.log('✅ Sent LOGIN via WebSocket');
-        } catch (error) {
-            console.warn('⚠️ WebSocket LOGIN failed, using fake response:', error);
-        }
-    }
-    
-    // Fallback: tạo fake RE_LOGIN_CODE
-    setTimeout(() => {
-        const fakeCode = 'nlu_' + Date.now();
-        localStorage.setItem(AUTH_RELOGIN_CODE_KEY, fakeCode);
-        console.log('📥 FAKE API Response: LOGIN success, RE_LOGIN_CODE:', fakeCode);
-        
-        // Fake get user list
-        fakeGetUserList();
-    }, 500);
-}
-
-// Fake API: RE_LOGIN
-function fakeReLogin(user, code) {
-    console.log('📤 FAKE API: RE_LOGIN', { user, code });
-    
-    // Gửi qua WebSocket nếu có kết nối
-    if (window.api && typeof window.api.re_login === 'function') {
-        try {
-            window.api.re_login(user, code);
-            console.log('✅ Sent RE_LOGIN via WebSocket');
-        } catch (error) {
-            console.warn('⚠️ WebSocket RE_LOGIN failed:', error);
-        }
-    }
-    
-    setTimeout(() => {
-        console.log('📥 FAKE API Response: RE_LOGIN success');
-    }, 300);
-}
-
-// Fake API: LOGOUT
-function fakeLogout() {
-    console.log('📤 FAKE API: LOGOUT');
-    
-    // Gửi qua WebSocket nếu có kết nối
-    if (window.api && typeof window.api.logout === 'function') {
-        try {
-            window.api.logout();
-            console.log('✅ Sent LOGOUT via WebSocket');
-        } catch (error) {
-            console.warn('⚠️ WebSocket LOGOUT failed:', error);
-        }
-    }
-    
-    setTimeout(() => {
-        console.log('📥 FAKE API Response: LOGOUT success');
-    }, 300);
-}
-
-// Fake API: SEND_CHAT (people)
-function fakeSendChatPeople(to, message) {
-    console.log('📤 FAKE API: SEND_CHAT (people)', { to, message });
-    
-    // Gửi qua WebSocket nếu có kết nối
-    if (window.api && typeof window.api.sendChatPeople === 'function') {
-        try {
-            window.api.sendChatPeople(to, message);
-            console.log('✅ Sent SEND_CHAT (people) via WebSocket');
-        } catch (error) {
-            console.warn('⚠️ WebSocket SEND_CHAT (people) failed:', error);
-        }
-    }
-    
-    setTimeout(() => {
-        console.log('📥 FAKE API Response: Message sent to', to);
-    }, 300);
-}
-
-// Fake API: SEND_CHAT (room)
-function fakeSendChatRoom(to, message) {
-    console.log('📤 FAKE API: SEND_CHAT (room)', { to, message });
-    
-    // Gửi qua WebSocket nếu có kết nối
-    if (window.api && typeof window.api.sendChatRoom === 'function') {
-        try {
-            window.api.sendChatRoom(to, message);
-            console.log('✅ Sent SEND_CHAT (room) via WebSocket');
-        } catch (error) {
-            console.warn('⚠️ WebSocket SEND_CHAT (room) failed:', error);
-        }
-    }
-    
-    setTimeout(() => {
-        console.log('📥 FAKE API Response: Message sent to room', to);
-    }, 300);
-}
-
-// Fake API: GET_USER_LIST
-function fakeGetUserList() {
-    console.log('📤 FAKE API: GET_USER_LIST');
-    
-    // Gửi qua WebSocket nếu có kết nối
-    if (window.api && typeof window.api.getUserList === 'function') {
-        try {
-            window.api.getUserList();
-            console.log('✅ Sent GET_USER_LIST via WebSocket');
-        } catch (error) {
-            console.warn('⚠️ WebSocket GET_USER_LIST failed:', error);
-        }
-    }
-    
-    setTimeout(() => {
-        const users = loadUsers().map(u => u.user);
-        console.log('📥 FAKE API Response: User list', users);
-    }, 300);
-}
-
-// Fake API: CHECK_USER_ONLINE
-function fakeCheckUserOnline(user) {
-    console.log('📤 FAKE API: CHECK_USER_ONLINE', { user });
-    
-    // Gửi qua WebSocket nếu có kết nối
-    if (window.api && typeof window.api.checkUserOnline === 'function') {
-        try {
-            window.api.checkUserOnline(user);
-            console.log('✅ Sent CHECK_USER_ONLINE via WebSocket');
-        } catch (error) {
-            console.warn('⚠️ WebSocket CHECK_USER_ONLINE failed:', error);
-        }
-    }
-    
-    setTimeout(() => {
-        const isOnline = Math.random() > 0.5;
-        console.log('📥 FAKE API Response:', user, 'is', isOnline ? 'online' : 'offline');
-    }, 300);
-}
-
-// Fake API: CHECK_USER_EXIST
-function fakeCheckUserExist(user) {
-    console.log('📤 FAKE API: CHECK_USER_EXIST', { user });
-    
-    // Gửi qua WebSocket nếu có kết nối
-    if (window.api && typeof window.api.checkUserExist === 'function') {
-        try {
-            window.api.checkUserExist(user);
-            console.log('✅ Sent CHECK_USER_EXIST via WebSocket');
-        } catch (error) {
-            console.warn('⚠️ WebSocket CHECK_USER_EXIST failed:', error);
-        }
-    }
-    
-    setTimeout(() => {
-        const users = loadUsers();
-        const exists = users.some(u => u.user === user);
-        console.log('📥 FAKE API Response:', user, exists ? 'exists' : 'does not exist');
-    }, 300);
-}
-
-// Fake API: CREATE_ROOM
-function fakeCreateRoom(name) {
-    console.log('📤 FAKE API: CREATE_ROOM', { name });
-    
-    // Gửi qua WebSocket nếu có kết nối
-    if (window.api && typeof window.api.createRoom === 'function') {
-        try {
-            window.api.createRoom(name);
-            console.log('✅ Sent CREATE_ROOM via WebSocket');
-        } catch (error) {
-            console.warn('⚠️ WebSocket CREATE_ROOM failed:', error);
-        }
-    }
-    
-    setTimeout(() => {
-        console.log('📥 FAKE API Response: Room created', name);
-    }, 300);
-}
-
-// Fake API: JOIN_ROOM
-function fakeJoinRoom(name) {
-    console.log('📤 FAKE API: JOIN_ROOM', { name });
-    
-    // Gửi qua WebSocket nếu có kết nối
-    if (window.api && typeof window.api.joinRoom === 'function') {
-        try {
-            window.api.joinRoom(name);
-            console.log('✅ Sent JOIN_ROOM via WebSocket');
-        } catch (error) {
-            console.warn('⚠️ WebSocket JOIN_ROOM failed:', error);
-        }
-    }
-    
-    setTimeout(() => {
-        console.log('📥 FAKE API Response: Joined room', name);
-    }, 300);
-}
-
-// Fake API: GET_PEOPLE_CHAT_MES
-function fakeGetPeopleChatMes(name, page = 1) {
-    console.log('📤 FAKE API: GET_PEOPLE_CHAT_MES', { name, page });
-    
-    // Gửi qua WebSocket nếu có kết nối
-    if (window.api && typeof window.api.getPeopleChatMes === 'function') {
-        try {
-            window.api.getPeopleChatMes(name, page);
-            console.log('✅ Sent GET_PEOPLE_CHAT_MES via WebSocket');
-        } catch (error) {
-            console.warn('⚠️ WebSocket GET_PEOPLE_CHAT_MES failed:', error);
-        }
-    }
-    
-    setTimeout(() => {
-        console.log('📥 FAKE API Response: Chat messages for', name);
-    }, 300);
-}
-
-// Fake API: GET_ROOM_CHAT_MES
-function fakeGetRoomChatMes(name, page = 1) {
-    console.log('📤 FAKE API: GET_ROOM_CHAT_MES', { name, page });
-    
-    // Gửi qua WebSocket nếu có kết nối
-    if (window.api && typeof window.api.getRoomChatMes === 'function') {
-        try {
-            window.api.getRoomChatMes(name, page);
-            console.log('✅ Sent GET_ROOM_CHAT_MES via WebSocket');
-        } catch (error) {
-            console.warn('⚠️ WebSocket GET_ROOM_CHAT_MES failed:', error);
-        }
-    }
-    
-    setTimeout(() => {
-        console.log('📥 FAKE API Response: Room messages for', name);
-    }, 300);
-}
-// ===== END FAKE API LAYER =====
+// ===== API LAYER (WebSocket only) =====
+// Tất cả fake API đã được xóa - chỉ sử dụng WebSocket API thật
+// ===== END API LAYER =====
 
 function getUserChatsKey(username) {
     return CHATS_KEY_PREFIX + username;
@@ -550,8 +289,9 @@ function createAccount(user, pass) {
     saveUsers(users);
     
     // Gọi fake API REGISTER
-    if (fakeApiEnabled) {
-        fakeRegister(user, pass);
+    // Gọi API REGISTER
+    if (window.api) {
+        window.api.register(user, pass);
     }
     
     return { ok: true };
@@ -564,8 +304,9 @@ function loginAccount(user, pass) {
     localStorage.setItem(AUTH_CURRENT_KEY, user);
 
     // Gọi fake API LOGIN
-    if (fakeApiEnabled) {
-        fakeLogin(user, pass);
+    // Gọi API LOGIN
+    if (window.api) {
+        window.api.login(user, pass);
     }
 
     // Kiểm tra nếu là admin thì chuyển sang trang admin
@@ -589,8 +330,9 @@ function logoutAccount() {
     }
 
     // Gọi fake API LOGOUT
-    if (fakeApiEnabled) {
-        fakeLogout();
+    // Gọi API LOGOUT
+    if (window.api) {
+        window.api.logout();
     }
 
     localStorage.removeItem(AUTH_CURRENT_KEY);
@@ -1214,14 +956,16 @@ function openChat(chat) {
     // Lưu lại danh sách chat sau khi clear unread
     saveUserChats(getCurrentUser(), allChats);
 
-    // Gọi API JOIN_ROOM nếu là nhóm
-    if (chat.isGroup && fakeApiEnabled) {
-        fakeJoinRoom(chat.name);
-        // Lấy tin nhắn của nhóm
-        fakeGetRoomChatMes(chat.name, 1);
-    } else if (!chat.isGroup && fakeApiEnabled) {
-        // Lấy tin nhắn cá nhân nếu không phải nhóm
-        fakeGetPeopleChatMes(chat.name, 1);
+    // Gọi API lấy messages
+    if (chat.isGroup) {
+        if (window.api) {
+            window.api.joinRoom(chat.name);
+            window.api.getRoomChatMes(chat.name, 1);
+        }
+    } else {
+        if (window.api) {
+            window.api.getPeopleChatMes(chat.name, 1);
+        }
     }
 
     // Render messages
@@ -1235,8 +979,9 @@ function openChat(chat) {
     clearTimeout(typingTimer);
 
     // Gọi fake API để kiểm tra user online
-    if (fakeApiEnabled) {
-        fakeCheckUserOnline(chat.name);
+    // Gọi API kiểm tra online
+    if (window.api) {
+        window.api.checkUserOnline(chat.name);
     }
 
     // info button always visible; panel will show group-specific controls
@@ -2579,12 +2324,11 @@ function sendMessage() {
     }
 
     // Gọi fake API SEND_CHAT theo type
-    if (fakeApiEnabled) {
-        if (currentChat.isGroup) {
-            fakeSendChatRoom(currentChat.name, text);
-        } else {
-            fakeSendChatPeople(currentChat.name, text);
-        }
+    // Gọi API gửi message
+    if (currentChat.isGroup) {
+        if (window.api) window.api.sendChatRoom(currentChat.name, text);
+    } else {
+        if (window.api) window.api.sendChatPeople(currentChat.name, text);
     }
 
     simulateSendResult(msg);
@@ -2714,8 +2458,9 @@ function createGroup(members, groupName) {
     const roomName = groupName || `Nhóm: ${uniqueMembers.filter(m => m !== currentUser).join(', ')}`;
 
     // Gọi API CREATE_ROOM
-    if (fakeApiEnabled) {
-        fakeCreateRoom(roomName);
+    // Gọi API CREATE_ROOM
+    if (window.api) {
+        window.api.createRoom(roomName);
     }
 
     // tin nhan he thong dau tien
@@ -2993,9 +2738,10 @@ function attachEvents() {
                     renderConversations(allChats);
 
                     // fake API: send to room or person
-                    if (fakeApiEnabled) {
-                        if (currentChat.isGroup) fakeSendChatRoom(currentChat.name, imgData);
-                        else fakeSendChatPeople(currentChat.name, imgData);
+                    // Gọi API gửi ảnh
+                    if (window.api) {
+                        if (currentChat.isGroup) window.api.sendChatRoom(currentChat.name, imgData);
+                        else window.api.sendChatPeople(currentChat.name, imgData);
                     }
 
                     simulateSendResult(msg);
@@ -3395,8 +3141,11 @@ function connectWs(url) {
 
     ws.addEventListener('open', () => {
         console.log('WebSocket connected to', url);
-        document.getElementById('connectionStatus').textContent = 'Connected';
-        document.getElementById('connectionStatus').className = 'connection-status online';
+        const statusEl = document.getElementById('connectionStatus');
+        if (statusEl) {
+            statusEl.textContent = 'Connected';
+            statusEl.className = 'connection-status online';
+        }
     });
 
     ws.addEventListener('message', (ev) => {
@@ -3444,8 +3193,11 @@ function connectWs(url) {
 
     ws.addEventListener('close', (e) => {
         console.log('WebSocket closed', e);
-        document.getElementById('connectionStatus').textContent = 'Disconnected';
-        document.getElementById('connectionStatus').className = 'connection-status offline';
+        const statusEl = document.getElementById('connectionStatus');
+        if (statusEl) {
+            statusEl.textContent = 'Disconnected';
+            statusEl.className = 'connection-status offline';
+        }
 
         // Tự động RE_LOGIN khi mất kết nối
         const currentUser = getCurrentUser();
@@ -3632,9 +3384,8 @@ function startCall(type) {
     console.log('📞 Calling:', currentChat.name, 'Type:', type);
     
     // Fake API call
-    if (fakeApiEnabled) {
-        console.log('📤 FAKE API: START_CALL', { to: currentChat.name, type });
-    }
+    // API call (nếu cần)
+    console.log('📤 API: START_CALL', { to: currentChat.name, type });
     
     // Simulate answer after 2-3 seconds
     setTimeout(() => {
@@ -3685,9 +3436,8 @@ function endCall() {
     console.log('📞 Call ended. Duration:', finalDuration, 'seconds');
     
     // Fake API call
-    if (fakeApiEnabled) {
-        console.log('📤 FAKE API: END_CALL', { duration: finalDuration, type: currentCallType });
-    }
+    // API call (nếu cần)
+    console.log('📤 API: END_CALL', { duration: finalDuration, type: currentCallType });
     
     // Add system message to chat
     if (currentChat && finalDuration > 0) {
