@@ -577,13 +577,64 @@ function viewChatDetail(username, chatId) {
                 const senderName = (msg.sender === 'me' || msg.sender === 'you') ? username : (msg.sender === 'system' ? 'Hệ thống' : chat.name);
                 const timestamp = msg.time || msg.timestamp || 'N/A';
                 
-                msgDiv.innerHTML = `
-                    <div class="message-header">
-                        <strong>${escapeHtml(senderName)}</strong>
-                        <span class="message-time">${escapeHtml(timestamp)}</span>
-                    </div>
-                    <div class="message-text">${escapeHtml(msg.text || msg.content || '')}</div>
+                // Create header
+                const headerDiv = document.createElement('div');
+                headerDiv.className = 'message-header';
+                headerDiv.innerHTML = `
+                    <strong>${escapeHtml(senderName)}</strong>
+                    <span class="message-time">${escapeHtml(timestamp)}</span>
                 `;
+                msgDiv.appendChild(headerDiv);
+                
+                // Create content based on message type
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'message-text';
+                
+                // Check if it's a voice message
+                if (msg.type === 'voice' && msg.audio) {
+                    contentDiv.innerHTML = `
+                        <div style="display:flex; align-items:center; gap:8px; padding:8px; background:rgba(0,123,255,0.1); border-radius:8px;">
+                            <i class="fas fa-microphone" style="color:#0084ff;"></i>
+                            <audio controls style="height:32px;">
+                                <source src="${msg.audio}" type="audio/webm">
+                                Trình duyệt không hỗ trợ phát audio
+                            </audio>
+                            <span style="font-size:12px; color:#65676b;">${msg.duration || 0}s</span>
+                        </div>
+                    `;
+                }
+                // Check if it's an image message
+                else if (msg.image) {
+                    contentDiv.innerHTML = `
+                        <img src="${msg.image}" 
+                             alt="Ảnh đã gửi" 
+                             style="max-width:280px; max-height:280px; border-radius:8px; display:block; cursor:pointer; object-fit:cover;"
+                             onclick="window.open('${msg.image}', '_blank')"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <div style="display:none; padding:8px; color:#999; font-style:italic;">
+                            <i class="fas fa-image"></i> Không thể tải ảnh
+                        </div>
+                        ${msg.text ? `<div style="margin-top:4px;">${escapeHtml(msg.text)}</div>` : ''}
+                    `;
+                }
+                // Check if it's a sticker
+                else if (msg.type === 'sticker' && msg.sticker) {
+                    contentDiv.innerHTML = `
+                        <img src="${msg.sticker}" 
+                             alt="Sticker" 
+                             style="width:120px; height:120px; object-fit:contain;">
+                    `;
+                }
+                // Regular text message
+                else if (msg.text || msg.content) {
+                    contentDiv.textContent = msg.text || msg.content || '';
+                }
+                // System message or unknown type
+                else {
+                    contentDiv.innerHTML = '<i style="color:#999;">Tin nhắn không có nội dung</i>';
+                }
+                
+                msgDiv.appendChild(contentDiv);
                 messagesContent.appendChild(msgDiv);
             });
         });
