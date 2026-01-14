@@ -3637,10 +3637,13 @@ function initVoiceRecording() {
 
 async function startRecording() {
     try {
+        // Reset audio data before starting new recording
+        audioChunks = [];
+        currentAudioBlob = null;
+        
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         
         mediaRecorder = new MediaRecorder(stream);
-        audioChunks = [];
         
         mediaRecorder.addEventListener('dataavailable', event => {
             audioChunks.push(event.data);
@@ -3693,13 +3696,39 @@ function cancelRecording() {
 }
 
 function sendVoiceMessage() {
-    if (!currentChat || !currentAudioBlob) return;
-    
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop();
-    }
+    if (!currentChat) return;
     
     clearInterval(recordingTimer);
+    
+    // If recording is still active, stop it and wait for the blob
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        // Add a one-time listener for when recording stops
+        mediaRecorder.addEventListener('stop', function handleStop() {
+            // This will be called after the stop event completes and audioBlob is ready
+            setTimeout(() => {
+                if (!currentAudioBlob) {
+                    console.error('No audio blob available');
+                    if (recordingStatus) recordingStatus.style.display = 'none';
+                    if (messageInputArea) messageInputArea.style.display = 'flex';
+                    return;
+                }
+                
+                processSendVoiceMessage();
+            }, 100); // Small delay to ensure blob is ready
+        }, { once: true });
+        
+        mediaRecorder.stop();
+    } else if (currentAudioBlob) {
+        // If already stopped, send immediately
+        processSendVoiceMessage();
+    }
+}
+
+function processSendVoiceMessage() {
+    if (!currentChat || !currentAudioBlob) {
+        console.error('Cannot send voice message: missing chat or audio');
+        return;
+    }
     
     const reader = new FileReader();
     reader.onloadend = function() {
@@ -3730,9 +3759,18 @@ function sendVoiceMessage() {
         
         if (recordingStatus) recordingStatus.style.display = 'none';
         if (messageInputArea) messageInputArea.style.display = 'flex';
+        
+        // Reset for next recording
+        audioChunks = [];
         currentAudioBlob = null;
         
-        console.log('Voice message sent');
+        console.log('Voice message sent successfully');
+    };
+    
+    reader.onerror = function(error) {
+        console.error('Error reading audio blob:', error);
+        if (recordingStatus) recordingStatus.style.display = 'none';
+        if (messageInputArea) messageInputArea.style.display = 'flex';
     };
     
     reader.readAsDataURL(currentAudioBlob);
