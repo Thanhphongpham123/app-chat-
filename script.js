@@ -1327,6 +1327,11 @@ function processImageToSquare(src, size, callback) {
 function renderMessages(messages) {
     messagesContainer.innerHTML = '';
 
+    messages.forEach(msg => {
+        if (!Array.isArray(msg.reactions)) msg.reactions = [];
+        if (!('lastReactionEmoji' in msg)) msg.lastReactionEmoji = null;
+    });
+
     // Group consecutive messages from same sender
     const groups = [];
     messages.forEach((msg, idx) => {
@@ -1463,8 +1468,16 @@ function renderMessages(messages) {
             bubbleWrapper.style.position = 'relative';
             bubbleWrapper.dataset.messageId = msg.id;
 
+            //danh dau tin nhan có reaction
+            if (msg.reactions && msg.reactions.length > 0) {
+                bubbleWrapper.classList.add('has-reaction');
+            } else {
+                bubbleWrapper.classList.remove('has-reaction');
+            }
+
             const bubble = document.createElement('div');
             bubble.className = 'message-bubble';
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
             bubble.textContent = msg.text;
@@ -1491,6 +1504,31 @@ function renderMessages(messages) {
                 replyPreview.appendChild(replySender);
                 replyPreview.appendChild(replyText);
                 bubble.appendChild(replyPreview);
+=======
+
+            // Hiển thị nhãn "Tin nhắn được chuyển tiếp" nếu là tin nhắn được chuyển tiếp
+            if (msg.isForwarded) {
+                const forwardedLabel = document.createElement('div');
+                forwardedLabel.className = 'forwarded-label';
+                forwardedLabel.innerHTML = '<i class="fas fa-share"></i> Tin nhắn được chuyển tiếp';
+                bubble.appendChild(forwardedLabel);
+            }
+
+            // Support voice messages
+            if (msg.type === 'voice' && msg.audio) {
+                const voiceMsg = createVoiceMessageElement(msg);
+                bubble.appendChild(voiceMsg);
+            }
+            // support sticker messages
+            else if (msg.type === 'sticker' && msg.sticker) {
+                const stickerEl = document.createElement('img');
+                stickerEl.src = msg.sticker;
+                stickerEl.className = 'message-sticker';
+                stickerEl.style.width = '150px';
+                stickerEl.style.height = '150px';
+                stickerEl.style.objectFit = 'contain';
+                bubble.appendChild(stickerEl);
+>>>>>>> 8e2e93a (sua lai giao dien hien thi va dem so luong bieu cam da chon)
             }
 
 >>>>>>> 778eeff (chuc nang reply rieng 1 tin nhan)
@@ -1538,7 +1576,7 @@ function renderMessages(messages) {
             // icon reaction (emoji)
             const reactionIcon = document.createElement('div');
             reactionIcon.className = 'message-reaction-icon';
-            reactionIcon.textContent = '♡';
+            reactionIcon.textContent = msg.lastReactionEmoji || '♡';
             bubbleWrapper.appendChild(reactionIcon);
 
 >>>>>>> 588cfed (sua lai giao dien icon action va reaction cua tin nhan)
@@ -1662,7 +1700,7 @@ function renderMessages(messages) {
                 reactionIcon.style.display = 'block'; // hiện reaction icon
                 if (icon.hideTimeout) clearTimeout(icon.hideTimeout);
                 icon.hideTimeout = setTimeout(() => {
-                    if (!reactionPickerOpen) {
+                    if (!reactionPickerOpen && !bubbleWrapper.classList.contains('has-reaction')) {
                         icon.style.display = 'none';
                         reactionIcon.style.display = 'none';
                     }
@@ -1695,11 +1733,32 @@ function renderMessages(messages) {
                 reactionIcon.style.display = 'block';
 >>>>>>> 588cfed (sua lai giao dien icon action va reaction cua tin nhan)
             });
+<<<<<<< HEAD
 
+=======
+>>>>>>> 8e2e93a (sua lai giao dien hien thi va dem so luong bieu cam da chon)
             bubbleWrapper.appendChild(bubble);
             bubbleWrapper.appendChild(actions);
             bubbleWrapper.appendChild(menu);
             msgDiv.appendChild(bubbleWrapper);
+
+            // Render existing reactions
+            if (msg.reactions.length > 0) {
+                const reactionsDiv = document.createElement('div');
+                reactionsDiv.className = 'message-reactions';
+                const total = msg.reactions.reduce((s, r) => s + r.count, 0);
+                reactionsDiv.innerHTML = `
+                    <span class="reaction-emojis">
+                        ${msg.reactions.map(r => r.emoji).join('')}
+                    </span>
+                    <span class="reaction-count">${total}</span>
+                `;
+                bubbleWrapper.insertBefore(
+                    reactionsDiv,
+                    bubble.nextSibling
+                );
+                bubbleWrapper.classList.add('has-reaction');
+            }
         });
 
         if (group[0].sender === 'you') {
@@ -1833,6 +1892,201 @@ function highlightMentions(text){
         `<span class="mention">${match.trim()}</span>`);
 }
 
+<<<<<<< HEAD
+=======
+// ========================================
+// REACTION FUNCTIONALITY
+// ========================================
+function addReaction(msg, emoji) {
+    const prevScroll = messagesContainer.scrollTop;
+    const prevHeight = messagesContainer.scrollHeight;
+    if (!msg.reactions) {
+        msg.reactions = [];
+    }
+
+    // tim emoji da ton tai chua
+    const found = msg.reactions.find(r => r.emoji === emoji);
+
+    if (found) {
+        found.count++;
+    } else {
+        msg.reactions.push({
+            emoji,
+            count: 1
+        });
+    }
+
+    msg.lastReactionEmoji = emoji;
+    const wrapper = document.querySelector(
+        `.message-bubble-wrapper[data-message-id="${msg.id}"]`
+    );
+    if (wrapper) {
+        const reactionIcon = wrapper.querySelector('.message-reaction-icon');
+        if (reactionIcon) {
+            reactionIcon.textContent = emoji;
+            reactionIcon.style.display = 'flex';
+        }
+        wrapper.classList.add('has-reaction');
+    }
+
+    // cap nhat UI reaction
+    renderReactionsUI(msg);
+    const cu = getCurrentUser();
+    if (cu) saveUserChats(cu, allChats);
+    const newHeight = messagesContainer.scrollHeight;
+    messagesContainer.scrollTop = prevScroll + (newHeight - prevHeight);
+}
+
+function renderReactionsUI(msg) {
+    const bubbleWrapper = document.querySelector(
+        `.message-bubble-wrapper[data-message-id="${msg.id}"]`
+    );
+    if (!bubbleWrapper) return;
+
+    let reactionsDiv = bubbleWrapper.querySelector('.message-reactions');
+    if (!reactionsDiv) {
+        reactionsDiv = document.createElement('div');
+        reactionsDiv.className = 'message-reactions';
+        bubbleWrapper.insertBefore(
+            reactionsDiv,
+            bubbleWrapper.querySelector('.message-bubble').nextSibling
+        );
+    }
+
+    const total = msg.reactions.reduce((sum, r) => sum + r.count, 0);
+
+    reactionsDiv.innerHTML = `
+        <span class="reaction-emojis">
+            ${msg.reactions.map(r => r.emoji).join('')}
+        </span>
+        <span class="reaction-count">${total}</span>
+    `;
+}
+
+function renderReactions(msg, container) {
+    container.innerHTML = '';
+
+    if (!msg.reactions || msg.reactions.length === 0) return;
+
+    const currentUser = getCurrentUser();
+    const userName = currentUser?.name || 'Bạn';
+
+    msg.reactions.forEach(reaction => {
+        const item = document.createElement('div');
+        item.className = 'reaction-item';
+
+        // Check if current user reacted
+        const userReacted = reaction.users.includes(userName);
+        if (userReacted) {
+            item.classList.add('active');
+        }
+
+        item.innerHTML = `${reaction.emoji} ${reaction.count}`;
+        item.title = reaction.users.join(', ');
+
+        // Click to toggle reaction
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            addReaction(msg, reaction.emoji);
+        });
+        container.appendChild(item);
+    });
+}
+
+// ========================================
+// STICKER FUNCTIONALITY
+// ========================================
+const STICKERS = [
+    'https://cdn-icons-png.flaticon.com/512/742/742751.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742752.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742774.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742769.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742920.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742940.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742800.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742804.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742808.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742812.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742831.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742847.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742857.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742864.png',
+    'https://cdn-icons-png.flaticon.com/512/742/742872.png'
+];
+
+function initSticker() {
+    const stickerBtn = document.getElementById('stickerBtn');
+    const stickerPopup = document.getElementById('stickerPopup');
+    
+    if (!stickerBtn || !stickerPopup) return;
+    
+    // Render stickers vào popup
+    stickerPopup.innerHTML = STICKERS.map(url => 
+        `<img src="${url}" class="sticker-item" data-sticker="${url}">`
+    ).join('');
+    
+    // Toggle sticker popup
+    stickerBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isVisible = stickerPopup.style.display === 'block';
+        stickerPopup.style.display = isVisible ? 'none' : 'block';
+        
+        // Đóng emoji popup nếu đang mở
+        const emojiPopup = document.getElementById('emojiPopup');
+        if (emojiPopup) emojiPopup.style.display = 'none';
+    });
+    
+    // Chọn sticker
+    stickerPopup.addEventListener('click', (e) => {
+        const stickerItem = e.target.closest('.sticker-item');
+        if (!stickerItem) return;
+        
+        const stickerUrl = stickerItem.dataset.sticker;
+        sendSticker(stickerUrl);
+        stickerPopup.style.display = 'none';
+    });
+    
+    // Đóng popup khi click ra ngoài
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#stickerBtn') && !e.target.closest('#stickerPopup')) {
+            stickerPopup.style.display = 'none';
+        }
+    });
+}
+
+function sendSticker(stickerUrl) {
+    if (!currentChat) return;
+    
+    const now = new Date();
+    const message = {
+        id: Date.now(),
+        sender: 'you',
+        type: 'sticker',
+        sticker: stickerUrl,
+        time: now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        date: now.toISOString().split('T')[0],
+        fullTime: now.toISOString(),
+        reactions: [],
+        isGroup: currentChat.isGroup
+    };
+    
+    currentChat.messages.push(message);
+    currentChat.lastMessage = '🎨 Sticker';
+    currentChat.timestamp = Date.now();
+    
+    const currentUser = getCurrentUser();
+    if (currentUser) {
+        saveUserChats(currentUser, allChats);
+    }
+    
+    renderMessages(currentChat.messages);
+    renderConversations(allChats);
+    
+    // Scroll to bottom
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+>>>>>>> 8e2e93a (sua lai giao dien hien thi va dem so luong bieu cam da chon)
 function retryMessage(msg) {
     msg.status = 'sending';
     renderMessages(currentChat.messages);
