@@ -46,8 +46,12 @@ let mentionStartIndex = -1;
 let mentionSearch = "";
 let conversationFilter = "all";
 let activeCategoryFilters = new Set();
+<<<<<<< HEAD
 let replyingMessage = null;
 let hideActionsTimer = null;
+=======
+let reactionPickerOpen = false;
+>>>>>>> 588cfed (sua lai giao dien icon action va reaction cua tin nhan)
 
 // DOM Elements
 const conversationsList = document.getElementById('conversationsList');
@@ -1512,6 +1516,7 @@ function renderMessages(messages) {
             }
 >>>>>>> f76e29c (tag group trong gui tin nhan group)
 
+<<<<<<< HEAD
             // ===== actions (reply + menu) =====
             const actions = document.createElement('div');
             actions.className = 'message-actions';
@@ -1529,6 +1534,14 @@ function renderMessages(messages) {
             actions.appendChild(replyIcon);
             actions.appendChild(menuIcon);
 
+=======
+            // icon reaction (emoji)
+            const reactionIcon = document.createElement('div');
+            reactionIcon.className = 'message-reaction-icon';
+            reactionIcon.textContent = '♡';
+            bubbleWrapper.appendChild(reactionIcon);
+
+>>>>>>> 588cfed (sua lai giao dien icon action va reaction cua tin nhan)
             // menu
             const menu = document.createElement('div');
             menu.className = 'message-actions-menu';
@@ -1638,22 +1651,49 @@ function renderMessages(messages) {
 
 >>>>>>> 6b836a9 (them ghim tin nhan)
             bubbleWrapper.addEventListener('mouseenter', () => {
+<<<<<<< HEAD
                 actions.style.display = 'flex';
                 if (hideActionsTimer) {
                     clearTimeout(hideActionsTimer);
                     hideActionsTimer = null;
                 }
+=======
+                icon.style.display = 'block'; // hiện icon
+                reactionIcon.style.display = 'block'; // hiện reaction icon
+                if (icon.hideTimeout) clearTimeout(icon.hideTimeout);
+                icon.hideTimeout = setTimeout(() => {
+                    if (!reactionPickerOpen) {
+                        icon.style.display = 'none';
+                        reactionIcon.style.display = 'none';
+                    }
+                }, 800);
+>>>>>>> 588cfed (sua lai giao dien icon action va reaction cua tin nhan)
             });
             actions.addEventListener('mouseleave', () => {
                 hideActionsTimer = setTimeout(() => {
                     actions.style.display = 'none';
                 }, 1000);
             });
+<<<<<<< HEAD
             actions.addEventListener('mouseenter', () => {
                 if (hideActionsTimer) {
                     clearTimeout(hideActionsTimer);
                     hideActionsTimer = null;
                 }
+=======
+            bubbleWrapper.appendChild(reactionPicker);
+
+            // Click reaction icon to show picker
+            reactionIcon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isOpen = reactionPicker.style.display === 'flex';
+                reactionPicker.style.display = isOpen ? 'none' : 'flex';
+                reactionPickerOpen = !isOpen;
+
+                // icon luôn hiện khi popup mở
+                icon.style.display = 'block';
+                reactionIcon.style.display = 'block';
+>>>>>>> 588cfed (sua lai giao dien icon action va reaction cua tin nhan)
             });
 
             bubbleWrapper.appendChild(bubble);
