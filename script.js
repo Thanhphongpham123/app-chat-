@@ -46,6 +46,7 @@ let mentionStartIndex = -1;
 let mentionSearch = "";
 let conversationFilter = "all";
 let activeCategoryFilters = new Set();
+let reactionPickerOpen = false;
 
 // DOM Elements
 const conversationsList = document.getElementById('conversationsList');
@@ -2032,25 +2033,8 @@ function renderMessages(messages) {
             // icon reaction (emoji)
             const reactionIcon = document.createElement('div');
             reactionIcon.className = 'message-reaction-icon';
-            reactionIcon.textContent = '😊';
-            reactionIcon.style.cssText = `
-                display: none;
-                position: absolute;
-                ${group[0].sender === 'you' ? 'left: -50px;' : 'right: -50px;'}
-                top: 50%;
-                transform: translateY(-50%);
-                width: 28px;
-                height: 28px;
-                border-radius: 50%;
-                background: #e4e6eb;
-                cursor: pointer;
-                font-size: 16px;
-                text-align: center;
-                line-height: 28px;
-                transition: all 0.2s;
-            `;
+            reactionIcon.textContent = '♡';
             bubbleWrapper.appendChild(reactionIcon);
-
 
             // menu
             const menu = document.createElement('div');
@@ -2149,8 +2133,10 @@ function renderMessages(messages) {
                 reactionIcon.style.display = 'block'; // hiện reaction icon
                 if (icon.hideTimeout) clearTimeout(icon.hideTimeout);
                 icon.hideTimeout = setTimeout(() => {
-                    icon.style.display = 'none';
-                    reactionIcon.style.display = 'none';
+                    if (!reactionPickerOpen) {
+                        icon.style.display = 'none';
+                        reactionIcon.style.display = 'none';
+                    }
                 }, 800);
             });
 
@@ -2180,7 +2166,13 @@ function renderMessages(messages) {
             // Click reaction icon to show picker
             reactionIcon.addEventListener('click', (e) => {
                 e.stopPropagation();
-                reactionPicker.style.display = reactionPicker.style.display === 'none' ? 'flex' : 'none';
+                const isOpen = reactionPicker.style.display === 'flex';
+                reactionPicker.style.display = isOpen ? 'none' : 'flex';
+                reactionPickerOpen = !isOpen;
+
+                // icon luôn hiện khi popup mở
+                icon.style.display = 'block';
+                reactionIcon.style.display = 'block';
             });
 
             // Render existing reactions
