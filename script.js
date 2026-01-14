@@ -1584,6 +1584,11 @@ function processImageToSquare(src, size, callback) {
 function renderMessages(messages) {
     messagesContainer.innerHTML = '';
 
+    messages.forEach(msg => {
+        if (!Array.isArray(msg.reactions)) msg.reactions = [];
+        if (!('lastReactionEmoji' in msg)) msg.lastReactionEmoji = null;
+    });
+
     // Group consecutive messages from same sender
     const groups = [];
     messages.forEach((msg, idx) => {
@@ -1717,9 +1722,16 @@ function renderMessages(messages) {
             bubbleWrapper.style.position = 'relative';
             bubbleWrapper.dataset.messageId = msg.id;
 
+            //danh dau tin nhan có reaction
+            if (msg.reactions && msg.reactions.length > 0) {
+                bubbleWrapper.classList.add('has-reaction');
+            } else {
+                bubbleWrapper.classList.remove('has-reaction');
+            }
+
             const bubble = document.createElement('div');
             bubble.className = 'message-bubble';
-            
+
             // Hiển thị nhãn "Tin nhắn được chuyển tiếp" nếu là tin nhắn được chuyển tiếp
             if (msg.isForwarded) {
                 const forwardedLabel = document.createElement('div');
@@ -1727,7 +1739,7 @@ function renderMessages(messages) {
                 forwardedLabel.innerHTML = '<i class="fas fa-share"></i> Tin nhắn được chuyển tiếp';
                 bubble.appendChild(forwardedLabel);
             }
-            
+
             // Support voice messages
             if (msg.type === 'voice' && msg.audio) {
                 const voiceMsg = createVoiceMessageElement(msg);
@@ -1778,7 +1790,7 @@ function renderMessages(messages) {
             // icon reaction (emoji)
             const reactionIcon = document.createElement('div');
             reactionIcon.className = 'message-reaction-icon';
-            reactionIcon.textContent = '♡';
+            reactionIcon.textContent = msg.lastReactionEmoji || '♡';
             bubbleWrapper.appendChild(reactionIcon);
 
             // menu
@@ -1878,7 +1890,7 @@ function renderMessages(messages) {
                 reactionIcon.style.display = 'block'; // hiện reaction icon
                 if (icon.hideTimeout) clearTimeout(icon.hideTimeout);
                 icon.hideTimeout = setTimeout(() => {
-                    if (!reactionPickerOpen) {
+                    if (!reactionPickerOpen && !bubbleWrapper.classList.contains('has-reaction')) {
                         icon.style.display = 'none';
                         reactionIcon.style.display = 'none';
                     }
@@ -1919,17 +1931,26 @@ function renderMessages(messages) {
                 icon.style.display = 'block';
                 reactionIcon.style.display = 'block';
             });
-
-            // Render existing reactions
-            if (msg.reactions && msg.reactions.length > 0) {
-                const reactionsDiv = document.createElement('div');
-                reactionsDiv.className = 'message-reactions';
-                renderReactions(msg, reactionsDiv);
-                bubbleWrapper.appendChild(reactionsDiv);
-            }
-
             bubbleWrapper.appendChild(bubble);
             msgDiv.appendChild(bubbleWrapper);
+
+            // Render existing reactions
+            if (msg.reactions.length > 0) {
+                const reactionsDiv = document.createElement('div');
+                reactionsDiv.className = 'message-reactions';
+                const total = msg.reactions.reduce((s, r) => s + r.count, 0);
+                reactionsDiv.innerHTML = `
+                    <span class="reaction-emojis">
+                        ${msg.reactions.map(r => r.emoji).join('')}
+                    </span>
+                    <span class="reaction-count">${total}</span>
+                `;
+                bubbleWrapper.insertBefore(
+                    reactionsDiv,
+                    bubble.nextSibling
+                );
+                bubbleWrapper.classList.add('has-reaction');
+            }
         });
 
         if (group[0].sender === 'you') {
@@ -2055,72 +2076,97 @@ function highlightMentions(text){
 // REACTION FUNCTIONALITY
 // ========================================
 function addReaction(msg, emoji) {
-    if (!msg.reactions) msg.reactions = [];
-    
-    const currentUser = getCurrentUser();
-    const userName = currentUser?.name || 'Bạn';
-    
-    // Check if user already reacted with this emoji
-    const existingReaction = msg.reactions.find(r => r.emoji === emoji);
-    
-    if (existingReaction) {
-        // Check if current user already used this emoji
-        const userIndex = existingReaction.users.indexOf(userName);
-        if (userIndex > -1) {
-            // Remove user's reaction
-            existingReaction.users.splice(userIndex, 1);
-            existingReaction.count--;
-            
-            // Remove reaction if no users left
-            if (existingReaction.count === 0) {
-                msg.reactions = msg.reactions.filter(r => r.emoji !== emoji);
-            }
-        } else {
-            // Add user to existing reaction
-            existingReaction.users.push(userName);
-            existingReaction.count++;
-        }
+    const prevScroll = messagesContainer.scrollTop;
+    const prevHeight = messagesContainer.scrollHeight;
+    if (!msg.reactions) {
+        msg.reactions = [];
+    }
+
+    // tim emoji da ton tai chua
+    const found = msg.reactions.find(r => r.emoji === emoji);
+
+    if (found) {
+        found.count++;
     } else {
-        // Create new reaction
         msg.reactions.push({
-            emoji: emoji,
-            count: 1,
-            users: [userName]
+            emoji,
+            count: 1
         });
     }
-    
-    // Save and re-render
-    if (currentUser) saveUserChats(currentUser, allChats);
-    renderMessages(currentChat.messages);
+
+    msg.lastReactionEmoji = emoji;
+    const wrapper = document.querySelector(
+        `.message-bubble-wrapper[data-message-id="${msg.id}"]`
+    );
+    if (wrapper) {
+        const reactionIcon = wrapper.querySelector('.message-reaction-icon');
+        if (reactionIcon) {
+            reactionIcon.textContent = emoji;
+            reactionIcon.style.display = 'flex';
+        }
+        wrapper.classList.add('has-reaction');
+    }
+
+    // cap nhat UI reaction
+    renderReactionsUI(msg);
+    const cu = getCurrentUser();
+    if (cu) saveUserChats(cu, allChats);
+    const newHeight = messagesContainer.scrollHeight;
+    messagesContainer.scrollTop = prevScroll + (newHeight - prevHeight);
+}
+
+function renderReactionsUI(msg) {
+    const bubbleWrapper = document.querySelector(
+        `.message-bubble-wrapper[data-message-id="${msg.id}"]`
+    );
+    if (!bubbleWrapper) return;
+
+    let reactionsDiv = bubbleWrapper.querySelector('.message-reactions');
+    if (!reactionsDiv) {
+        reactionsDiv = document.createElement('div');
+        reactionsDiv.className = 'message-reactions';
+        bubbleWrapper.insertBefore(
+            reactionsDiv,
+            bubbleWrapper.querySelector('.message-bubble').nextSibling
+        );
+    }
+
+    const total = msg.reactions.reduce((sum, r) => sum + r.count, 0);
+
+    reactionsDiv.innerHTML = `
+        <span class="reaction-emojis">
+            ${msg.reactions.map(r => r.emoji).join('')}
+        </span>
+        <span class="reaction-count">${total}</span>
+    `;
 }
 
 function renderReactions(msg, container) {
     container.innerHTML = '';
-    
+
     if (!msg.reactions || msg.reactions.length === 0) return;
-    
+
     const currentUser = getCurrentUser();
     const userName = currentUser?.name || 'Bạn';
-    
+
     msg.reactions.forEach(reaction => {
         const item = document.createElement('div');
         item.className = 'reaction-item';
-        
+
         // Check if current user reacted
         const userReacted = reaction.users.includes(userName);
         if (userReacted) {
             item.classList.add('active');
         }
-        
+
         item.innerHTML = `${reaction.emoji} ${reaction.count}`;
         item.title = reaction.users.join(', ');
-        
+
         // Click to toggle reaction
         item.addEventListener('click', (e) => {
             e.stopPropagation();
             addReaction(msg, reaction.emoji);
         });
-        
         container.appendChild(item);
     });
 }
