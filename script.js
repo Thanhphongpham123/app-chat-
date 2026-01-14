@@ -2029,6 +2029,28 @@ function renderMessages(messages) {
             }
             bubbleWrapper.appendChild(icon);
 
+            // icon reaction (emoji)
+            const reactionIcon = document.createElement('div');
+            reactionIcon.className = 'message-reaction-icon';
+            reactionIcon.textContent = '😊';
+            reactionIcon.style.cssText = `
+                display: none;
+                position: absolute;
+                ${group[0].sender === 'you' ? 'left: -50px;' : 'right: -50px;'}
+                top: 50%;
+                transform: translateY(-50%);
+                width: 28px;
+                height: 28px;
+                border-radius: 50%;
+                background: #e4e6eb;
+                cursor: pointer;
+                font-size: 16px;
+                text-align: center;
+                line-height: 28px;
+                transition: all 0.2s;
+            `;
+            bubbleWrapper.appendChild(reactionIcon);
+
 
             // menu
             const menu = document.createElement('div');
@@ -2124,11 +2146,50 @@ function renderMessages(messages) {
 
             bubbleWrapper.addEventListener('mouseenter', () => {
                 icon.style.display = 'block'; // hiện icon
+                reactionIcon.style.display = 'block'; // hiện reaction icon
                 if (icon.hideTimeout) clearTimeout(icon.hideTimeout);
                 icon.hideTimeout = setTimeout(() => {
-                    icon.style.display = 'none'; // 2 giây sau ẩn
+                    icon.style.display = 'none';
+                    reactionIcon.style.display = 'none';
                 }, 800);
             });
+
+            // Reaction picker
+            const reactionPicker = document.createElement('div');
+            reactionPicker.className = 'reaction-picker';
+            reactionPicker.style.display = 'none';
+            const reactionEmojis = ['❤️', '😂', '😮', '😢', '👍', '🔥'];
+            reactionEmojis.forEach(emoji => {
+                const item = document.createElement('span');
+                item.textContent = emoji;
+                item.style.cursor = 'pointer';
+                item.style.padding = '4px 8px';
+                item.style.fontSize = '20px';
+                item.style.transition = 'transform 0.2s';
+                item.addEventListener('mouseenter', () => item.style.transform = 'scale(1.3)');
+                item.addEventListener('mouseleave', () => item.style.transform = 'scale(1)');
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    addReaction(msg, emoji);
+                    reactionPicker.style.display = 'none';
+                });
+                reactionPicker.appendChild(item);
+            });
+            bubbleWrapper.appendChild(reactionPicker);
+
+            // Click reaction icon to show picker
+            reactionIcon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                reactionPicker.style.display = reactionPicker.style.display === 'none' ? 'flex' : 'none';
+            });
+
+            // Render existing reactions
+            if (msg.reactions && msg.reactions.length > 0) {
+                const reactionsDiv = document.createElement('div');
+                reactionsDiv.className = 'message-reactions';
+                renderReactions(msg, reactionsDiv);
+                bubbleWrapper.appendChild(reactionsDiv);
+            }
 
             bubbleWrapper.appendChild(bubble);
             msgDiv.appendChild(bubbleWrapper);
@@ -2251,6 +2312,80 @@ function highlightMentions(text){
     if(!text) return "";
     return text.replace(/@[\p{L}\p{M}0-9_ ]+/gu, match =>
         `<span class="mention">${match.trim()}</span>`);
+}
+
+// ========================================
+// REACTION FUNCTIONALITY
+// ========================================
+function addReaction(msg, emoji) {
+    if (!msg.reactions) msg.reactions = [];
+    
+    const currentUser = getCurrentUser();
+    const userName = currentUser?.name || 'Bạn';
+    
+    // Check if user already reacted with this emoji
+    const existingReaction = msg.reactions.find(r => r.emoji === emoji);
+    
+    if (existingReaction) {
+        // Check if current user already used this emoji
+        const userIndex = existingReaction.users.indexOf(userName);
+        if (userIndex > -1) {
+            // Remove user's reaction
+            existingReaction.users.splice(userIndex, 1);
+            existingReaction.count--;
+            
+            // Remove reaction if no users left
+            if (existingReaction.count === 0) {
+                msg.reactions = msg.reactions.filter(r => r.emoji !== emoji);
+            }
+        } else {
+            // Add user to existing reaction
+            existingReaction.users.push(userName);
+            existingReaction.count++;
+        }
+    } else {
+        // Create new reaction
+        msg.reactions.push({
+            emoji: emoji,
+            count: 1,
+            users: [userName]
+        });
+    }
+    
+    // Save and re-render
+    if (currentUser) saveUserChats(currentUser, allChats);
+    renderMessages(currentChat.messages);
+}
+
+function renderReactions(msg, container) {
+    container.innerHTML = '';
+    
+    if (!msg.reactions || msg.reactions.length === 0) return;
+    
+    const currentUser = getCurrentUser();
+    const userName = currentUser?.name || 'Bạn';
+    
+    msg.reactions.forEach(reaction => {
+        const item = document.createElement('div');
+        item.className = 'reaction-item';
+        
+        // Check if current user reacted
+        const userReacted = reaction.users.includes(userName);
+        if (userReacted) {
+            item.classList.add('active');
+        }
+        
+        item.innerHTML = `${reaction.emoji} ${reaction.count}`;
+        item.title = reaction.users.join(', ');
+        
+        // Click to toggle reaction
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            addReaction(msg, reaction.emoji);
+        });
+        
+        container.appendChild(item);
+    });
 }
 
 // ========================================
