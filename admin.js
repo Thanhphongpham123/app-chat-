@@ -2,6 +2,105 @@
 const AUTH_USERS_KEY = 'appChat_users';
 const AUTH_CURRENT_KEY = 'appChat_currentUser';
 const CHATS_KEY_PREFIX = 'appChat_chats_';
+const ACTIVITY_LOG_KEY = 'appChat_activityLogs';
+
+// Activity Log Actions
+const LOG_ACTIONS = {
+    USER_CREATED: 'user_created',
+    USER_EDITED: 'user_edited',
+    USER_DELETED: 'user_deleted',
+    USER_LOCKED: 'user_locked',
+    USER_UNLOCKED: 'user_unlocked',
+    PASSWORD_RESET: 'password_reset',
+    CHAT_DELETED: 'chat_deleted',
+    LOGIN: 'login',
+    LOGOUT: 'logout'
+};
+
+const LOG_ACTION_LABELS = {
+    'user_created': 'Tạo tài khoản',
+    'user_edited': 'Sửa tài khoản',
+    'user_deleted': 'Xóa tài khoản',
+    'user_locked': 'Khóa tài khoản',
+    'user_unlocked': 'Mở khóa tài khoản',
+    'password_reset': 'Reset mật khẩu',
+    'chat_deleted': 'Xóa cuộc trò chuyện',
+    'login': 'Đăng nhập Admin',
+    'logout': 'Đăng xuất Admin'
+};
+
+// Activity Log Functions
+function logActivity(action, target, details = '') {
+    const logs = loadActivityLogs();
+    const currentAdmin = localStorage.getItem(AUTH_CURRENT_KEY);
+    
+    const log = {
+        id: Date.now(),
+        timestamp: new Date().toLocaleString('vi-VN'),
+        admin: currentAdmin,
+        action: action,
+        target: target,
+        details: details
+    };
+    
+    logs.unshift(log); // Add to beginning
+    
+    // Keep only last 1000 logs
+    if (logs.length > 1000) {
+        logs.splice(1000);
+    }
+    
+    localStorage.setItem(ACTIVITY_LOG_KEY, JSON.stringify(logs));
+}
+
+function loadActivityLogs() {
+    try {
+        return JSON.parse(localStorage.getItem(ACTIVITY_LOG_KEY) || '[]');
+    } catch {
+        return [];
+    }
+}
+
+function clearOldLogs(daysToKeep = 30) {
+    const logs = loadActivityLogs();
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+    
+    const filtered = logs.filter(log => {
+        try {
+            const logDate = parseVietnameseDate(log.timestamp);
+            return logDate >= cutoffDate;
+        } catch {
+            return true; // Keep if can't parse
+        }
+    });
+    
+    localStorage.setItem(ACTIVITY_LOG_KEY, JSON.stringify(filtered));
+    return logs.length - filtered.length;
+}
+
+function parseVietnameseDate(dateStr) {
+    // Parse format: "15/01/2026, 10:30:45"
+    const parts = dateStr.split(', ');
+    if (parts.length !== 2) return new Date(dateStr);
+    
+    const [day, month, year] = parts[0].split('/');
+    const [hours, minutes, seconds] = parts[1].split(':');
+    
+    return new Date(year, month - 1, day, hours, minutes, seconds);
+}
+
+function exportLogs() {
+    const logs = loadActivityLogs();
+    const dataStr = JSON.stringify(logs, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `activity-logs-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
 
 // Check if user is admin
 function checkAdminAuth() {
@@ -11,6 +110,10 @@ function checkAdminAuth() {
         window.location.href = 'index.html';
         return false;
     }
+    
+    // Log admin login
+    logActivity(LOG_ACTIONS.LOGIN, currentUser, 'Đăng nhập vào Admin Panel');
+    
     return true;
 }
 
@@ -77,7 +180,8 @@ function setupNavigation() {
                 dashboard: 'Dashboard',
                 users: 'Quản lý tài khoản',
                 chats: 'Quản lý chat',
-                search: 'Tìm kiếm nâng cao'
+                search: 'Tìm kiếm nâng cao',
+                logs: 'Nhật ký hoạt động'
             };
             document.getElementById('pageTitle').textContent = titles[sectionId];
             
@@ -85,6 +189,7 @@ function setupNavigation() {
             if (sectionId === 'users') loadUsersTable();
             if (sectionId === 'chats') loadChatsTable();
             if (sectionId === 'search') initSearchSection();
+            if (sectionId === 'logs') initLogsSection();
         });
     });
 }
@@ -135,6 +240,9 @@ function setupEventListeners() {
     
     // Search section
     setupSearchListeners();
+    
+    // Activity Log section
+    setupLogListeners();
 }
 
 // Load dashboard data
@@ -337,6 +445,9 @@ function addUser() {
     document.getElementById('confirmPassword').value = '';
     document.getElementById('isAdminCheck').checked = false;
     
+    // Log activity
+    logActivity(LOG_ACTIONS.USER_CREATED, username, `Tạo tài khoản mới (${isAdmin ? 'Admin' : 'User'})`);
+    
     // Reload table
     loadUsersTable();
     loadDashboard();
@@ -389,6 +500,12 @@ function updateUser() {
     
     saveUsers(users);
     
+    // Log activity
+    const changes = [];
+    if (newPassword) changes.push('mật khẩu');
+    if (username !== 'admin') changes.push(`vai trò: ${isAdmin ? 'Admin' : 'User'}`);
+    logActivity(LOG_ACTIONS.USER_EDITED, username, `Cập nhật ${changes.join(', ')}`);
+    
     // Close modal
     document.getElementById('editUserModal').classList.remove('active');
     
@@ -414,6 +531,9 @@ function resetPassword(username) {
     user.pass = hashPw('123');
     saveUsers(users);
     
+    // Log activity
+    logActivity(LOG_ACTIONS.PASSWORD_RESET, username, 'Reset mật khẩu về "123"');
+    
     alert(`Đã reset mật khẩu cho "${username}" về "123"`);
 }
 
@@ -428,6 +548,9 @@ function deleteUser(username) {
     
     // Delete user's chats
     localStorage.removeItem(CHATS_KEY_PREFIX + username);
+    
+    // Log activity
+    logActivity(LOG_ACTIONS.USER_DELETED, username, 'Xóa tài khoản và toàn bộ dữ liệu');
     
     loadUsersTable();
     loadDashboard();
@@ -490,6 +613,9 @@ function confirmLockUnlock() {
         
         saveUsers(users);
         
+        // Log activity
+        logActivity(LOG_ACTIONS.USER_LOCKED, lockingUsername, `Lý do: ${user.lockReason}`);
+        
         // Close modal
         document.getElementById('lockUserModal').classList.remove('active');
         
@@ -507,6 +633,9 @@ function confirmLockUnlock() {
         user.unlockedBy = localStorage.getItem(AUTH_CURRENT_KEY);
         
         saveUsers(users);
+        
+        // Log activity
+        logActivity(LOG_ACTIONS.USER_UNLOCKED, lockingUsername, 'Mở khóa tài khoản');
         
         // Close modal
         document.getElementById('lockUserModal').classList.remove('active');
@@ -765,6 +894,10 @@ function deleteChat(username, chatId) {
     
     localStorage.setItem(CHATS_KEY_PREFIX + username, JSON.stringify(filtered));
     
+    // Log activity
+    const deletedChat = chats.find(c => c.id === chatId);
+    logActivity(LOG_ACTIONS.CHAT_DELETED, `${username}/${deletedChat?.name || 'Unknown'}`, `Xóa cuộc trò chuyện của ${username}`);
+    
     loadChatsTable();
     loadDashboard();
     
@@ -795,8 +928,157 @@ function toggleDarkMode() {
 function logout() {
     if (!confirm('Đăng xuất khỏi trang quản trị?')) return;
     
+    const currentAdmin = localStorage.getItem(AUTH_CURRENT_KEY);
+    logActivity(LOG_ACTIONS.LOGOUT, currentAdmin, 'Đăng xuất khỏi Admin Panel');
+    
     localStorage.removeItem(AUTH_CURRENT_KEY);
     window.location.href = 'index.html';
+}
+
+// ============================================
+// ACTIVITY LOG FUNCTIONS
+// ============================================
+
+function setupLogListeners() {
+    document.getElementById('exportLogsBtn')?.addEventListener('click', () => {
+        exportLogs();
+        showNotification('Đã xuất logs thành công');
+    });
+    
+    document.getElementById('clearLogsBtn')?.addEventListener('click', () => {
+        if (!confirm('Xóa logs cũ hơn 30 ngày? Hành động này không thể hoàn tác!')) return;
+        const deleted = clearOldLogs(30);
+        showNotification(`Đã xóa ${deleted} logs cũ`);
+        loadLogsTable();
+    });
+    
+    document.getElementById('applyLogFilters')?.addEventListener('click', () => {
+        loadLogsTable();
+    });
+    
+    document.getElementById('resetLogFilters')?.addEventListener('click', () => {
+        document.getElementById('filterLogType').value = 'all';
+        document.getElementById('filterLogAdmin').value = 'all';
+        document.getElementById('filterLogDateFrom').value = '';
+        document.getElementById('filterLogDateTo').value = '';
+        loadLogsTable();
+    });
+}
+
+function initLogsSection() {
+    populateAdminFilter();
+    loadLogsTable();
+}
+
+function populateAdminFilter() {
+    const logs = loadActivityLogs();
+    const admins = [...new Set(logs.map(log => log.admin))].filter(Boolean);
+    
+    const select = document.getElementById('filterLogAdmin');
+    select.innerHTML = '<option value="all">Tất cả</option>';
+    
+    admins.forEach(admin => {
+        const option = document.createElement('option');
+        option.value = admin;
+        option.textContent = admin;
+        select.appendChild(option);
+    });
+}
+
+function loadLogsTable() {
+    const logs = loadActivityLogs();
+    const tbody = document.getElementById('logsTableBody');
+    
+    if (!tbody) return;
+    
+    // Apply filters
+    const typeFilter = document.getElementById('filterLogType')?.value || 'all';
+    const adminFilter = document.getElementById('filterLogAdmin')?.value || 'all';
+    const dateFromStr = document.getElementById('filterLogDateFrom')?.value;
+    const dateToStr = document.getElementById('filterLogDateTo')?.value;
+    
+    let filtered = logs;
+    
+    // Filter by type
+    if (typeFilter !== 'all') {
+        filtered = filtered.filter(log => log.action === typeFilter);
+    }
+    
+    // Filter by admin
+    if (adminFilter !== 'all') {
+        filtered = filtered.filter(log => log.admin === adminFilter);
+    }
+    
+    // Filter by date range
+    if (dateFromStr) {
+        const dateFrom = new Date(dateFromStr);
+        dateFrom.setHours(0, 0, 0, 0);
+        filtered = filtered.filter(log => {
+            try {
+                const logDate = parseVietnameseDate(log.timestamp);
+                return logDate >= dateFrom;
+            } catch {
+                return true;
+            }
+        });
+    }
+    
+    if (dateToStr) {
+        const dateTo = new Date(dateToStr);
+        dateTo.setHours(23, 59, 59, 999);
+        filtered = filtered.filter(log => {
+            try {
+                const logDate = parseVietnameseDate(log.timestamp);
+                return logDate <= dateTo;
+            } catch {
+                return true;
+            }
+        });
+    }
+    
+    // Render table
+    tbody.innerHTML = '';
+    
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Không có logs nào</td></tr>';
+        return;
+    }
+    
+    filtered.forEach((log, index) => {
+        const row = document.createElement('tr');
+        const actionLabel = LOG_ACTION_LABELS[log.action] || log.action;
+        const actionColor = getActionColor(log.action);
+        
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${escapeHtml(log.timestamp)}</td>
+            <td><span class="badge badge-admin">${escapeHtml(log.admin)}</span></td>
+            <td><span class="badge" style="background:${actionColor};">${actionLabel}</span></td>
+            <td><strong>${escapeHtml(log.target)}</strong></td>
+            <td>${escapeHtml(log.details || '-')}</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function getActionColor(action) {
+    const colors = {
+        'user_created': '#27ae60',
+        'user_edited': '#3498db',
+        'user_deleted': '#e74c3c',
+        'user_locked': '#e67e22',
+        'user_unlocked': '#2ecc71',
+        'password_reset': '#f39c12',
+        'chat_deleted': '#c0392b',
+        'login': '#1abc9c',
+        'logout': '#95a5a6'
+    };
+    return colors[action] || '#7f8c8d';
+}
+
+function showNotification(message) {
+    // Simple notification - you can enhance this
+    alert(message);
 }
 
 // Escape HTML
