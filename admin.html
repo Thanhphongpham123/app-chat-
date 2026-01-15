@@ -330,6 +330,27 @@
         </div>
     </div>
 
+    <!-- Lock/Unlock User Modal -->
+    <div id="lockUserModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="lockModalTitle">Khóa tài khoản</h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="lockModalMessage">Bạn có chắc chắn muốn khóa tài khoản này?</p>
+                <div class="form-group" id="lockReasonGroup">
+                    <label>Lý do khóa (tùy chọn)</label>
+                    <textarea id="lockReason" rows="3" placeholder="Nhập lý do khóa tài khoản..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary close-modal">Hủy</button>
+                <button id="confirmLockUser" class="btn-danger">Xác nhận</button>
+            </div>
+        </div>
+    </div>
+
     <!-- View Chat Modal -->
     <div id="viewChatModal" class="modal">
         <div class="modal-content" style="max-width: 800px;">
