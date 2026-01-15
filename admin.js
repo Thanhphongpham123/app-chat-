@@ -124,6 +124,9 @@ function setupEventListeners() {
     // Confirm edit user
     document.getElementById('confirmEditUser').addEventListener('click', updateUser);
     
+    // Confirm lock/unlock user
+    document.getElementById('confirmLockUser').addEventListener('click', confirmLockUnlock);
+    
     // Search user
     document.getElementById('searchUser')?.addEventListener('input', filterUsers);
     
@@ -191,14 +194,26 @@ function loadUsersTable() {
     tbody.innerHTML = '';
     
     users.forEach((user, index) => {
+        const isLocked = user.isLocked || false;
+        const statusBadge = isLocked 
+            ? '<span class="badge badge-locked"><i class="fas fa-lock"></i> Đã khóa</span>' 
+            : '<span class="badge badge-active"><i class="fas fa-check-circle"></i> Hoạt động</span>';
+        
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${index + 1}</td>
             <td><strong>${escapeHtml(user.user)}</strong></td>
             <td><span class="badge ${user.isAdmin ? 'badge-admin' : 'badge-user'}">${user.isAdmin ? 'Admin' : 'User'}</span></td>
             <td>${user.createdAt || 'N/A'}</td>
-            <td><span class="badge badge-active">Hoạt động</span></td>
+            <td>${statusBadge}</td>
             <td class="action-btns">
+                ${user.user !== 'admin' ? `
+                <button class="btn-icon ${isLocked ? 'btn-unlock' : 'btn-lock'}" 
+                        onclick="${isLocked ? 'unlockUser' : 'lockUser'}('${escapeHtml(user.user)}')" 
+                        title="${isLocked ? 'Mở khóa' : 'Khóa tài khoản'}">
+                    <i class="fas fa-${isLocked ? 'unlock' : 'lock'}"></i>
+                </button>
+                ` : ''}
                 <button class="btn-icon btn-edit" onclick="editUser('${escapeHtml(user.user)}')" title="Chỉnh sửa">
                     <i class="fas fa-edit"></i>
                 </button>
@@ -238,14 +253,26 @@ function filterUsers() {
     tbody.innerHTML = '';
     
     filtered.forEach((user, index) => {
+        const isLocked = user.isLocked || false;
+        const statusBadge = isLocked 
+            ? '<span class="badge badge-locked"><i class="fas fa-lock"></i> Đã khóa</span>' 
+            : '<span class="badge badge-active"><i class="fas fa-check-circle"></i> Hoạt động</span>';
+        
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${index + 1}</td>
             <td><strong>${escapeHtml(user.user)}</strong></td>
             <td><span class="badge ${user.isAdmin ? 'badge-admin' : 'badge-user'}">${user.isAdmin ? 'Admin' : 'User'}</span></td>
             <td>${user.createdAt || 'N/A'}</td>
-            <td><span class="badge badge-active">Hoạt động</span></td>
+            <td>${statusBadge}</td>
             <td class="action-btns">
+                ${user.user !== 'admin' ? `
+                <button class="btn-icon ${isLocked ? 'btn-unlock' : 'btn-lock'}" 
+                        onclick="${isLocked ? 'unlockUser' : 'lockUser'}('${escapeHtml(user.user)}')" 
+                        title="${isLocked ? 'Mở khóa' : 'Khóa tài khoản'}">
+                    <i class="fas fa-${isLocked ? 'unlock' : 'lock'}"></i>
+                </button>
+                ` : ''}
                 <button class="btn-icon btn-edit" onclick="editUser('${escapeHtml(user.user)}')" title="Chỉnh sửa">
                     <i class="fas fa-edit"></i>
                 </button>
@@ -406,6 +433,91 @@ function deleteUser(username) {
     loadDashboard();
     
     alert(`Đã xóa tài khoản "${username}"`);
+}
+
+// Lock user
+let lockingUsername = null;
+let isLockingAction = true;
+
+function lockUser(username) {
+    lockingUsername = username;
+    isLockingAction = true;
+    
+    // Update modal content
+    document.getElementById('lockModalTitle').textContent = 'Khóa tài khoản';
+    document.getElementById('lockModalMessage').textContent = `Bạn có chắc chắn muốn khóa tài khoản "${username}"? Người dùng sẽ không thể đăng nhập sau khi bị khóa.`;
+    document.getElementById('lockReasonGroup').style.display = 'block';
+    document.getElementById('lockReason').value = '';
+    document.getElementById('confirmLockUser').textContent = 'Khóa tài khoản';
+    document.getElementById('confirmLockUser').className = 'btn-danger';
+    
+    // Show modal
+    document.getElementById('lockUserModal').classList.add('active');
+}
+
+function unlockUser(username) {
+    lockingUsername = username;
+    isLockingAction = false;
+    
+    // Update modal content
+    document.getElementById('lockModalTitle').textContent = 'Mở khóa tài khoản';
+    document.getElementById('lockModalMessage').textContent = `Bạn có chắc chắn muốn mở khóa tài khoản "${username}"? Người dùng sẽ có thể đăng nhập lại.`;
+    document.getElementById('lockReasonGroup').style.display = 'none';
+    document.getElementById('confirmLockUser').textContent = 'Mở khóa';
+    document.getElementById('confirmLockUser').className = 'btn-primary';
+    
+    // Show modal
+    document.getElementById('lockUserModal').classList.add('active');
+}
+
+function confirmLockUnlock() {
+    if (!lockingUsername) return;
+    
+    const users = loadUsers();
+    const user = users.find(u => u.user === lockingUsername);
+    
+    if (!user) {
+        alert('Không tìm thấy tài khoản');
+        return;
+    }
+    
+    if (isLockingAction) {
+        // Lock user
+        user.isLocked = true;
+        user.lockReason = document.getElementById('lockReason').value.trim() || 'Không có lý do';
+        user.lockedAt = new Date().toLocaleString('vi-VN');
+        user.lockedBy = localStorage.getItem(AUTH_CURRENT_KEY);
+        
+        saveUsers(users);
+        
+        // Close modal
+        document.getElementById('lockUserModal').classList.remove('active');
+        
+        // Reload table
+        loadUsersTable();
+        
+        alert(`Đã khóa tài khoản "${lockingUsername}"`);
+    } else {
+        // Unlock user
+        user.isLocked = false;
+        user.lockReason = null;
+        user.lockedAt = null;
+        user.lockedBy = null;
+        user.unlockedAt = new Date().toLocaleString('vi-VN');
+        user.unlockedBy = localStorage.getItem(AUTH_CURRENT_KEY);
+        
+        saveUsers(users);
+        
+        // Close modal
+        document.getElementById('lockUserModal').classList.remove('active');
+        
+        // Reload table
+        loadUsersTable();
+        
+        alert(`Đã mở khóa tài khoản "${lockingUsername}"`);
+    }
+    
+    lockingUsername = null;
 }
 
 // Load chats table

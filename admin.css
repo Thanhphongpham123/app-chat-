@@ -378,6 +378,11 @@ body {
     color: white;
 }
 
+.badge-locked {
+    background: #e74c3c;
+    color: white;
+}
+
 .action-btns {
     display: flex;
     gap: 8px;
@@ -393,6 +398,26 @@ body {
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
+}
+
+.btn-lock {
+    background: #ffe6e6;
+    color: #c0392b;
+}
+
+.btn-lock:hover {
+    background: #ffcccc;
+    transform: scale(1.1);
+}
+
+.btn-unlock {
+    background: #d4edda;
+    color: #155724;
+}
+
+.btn-unlock:hover {
+    background: #c3e6cb;
+    transform: scale(1.1);
 }
 
 .btn-edit {
@@ -483,6 +508,16 @@ body {
     margin-bottom: 8px;
     color: #2c3e50;
     font-weight: 500;
+}
+
+.form-group textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
 }
 
 .form-group input[type="text"],

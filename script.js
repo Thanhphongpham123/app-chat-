@@ -301,6 +301,17 @@ function loginAccount(user, pass) {
     const users = loadUsers();
     const u = users.find(x => x.user === user && x.pass === hashPw(pass));
     if (!u) return { ok: false, error: 'Sai tài khoản hoặc mật khẩu' };
+    
+    // Kiểm tra tài khoản có bị khóa không
+    if (u.isLocked) {
+        const reason = u.lockReason || 'Không có lý do cụ thể';
+        const lockedAt = u.lockedAt || 'N/A';
+        return { 
+            ok: false, 
+            error: `Tài khoản đã bị khóa!\nLý do: ${reason}\nThời gian: ${lockedAt}\n\nVui lòng liên hệ quản trị viên để biết thêm chi tiết.` 
+        };
+    }
+    
     localStorage.setItem(AUTH_CURRENT_KEY, user);
 
     // Gọi fake API LOGIN
