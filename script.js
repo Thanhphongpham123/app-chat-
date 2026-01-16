@@ -202,7 +202,12 @@ function loadUserChats(username) {
             saveUserChats(username, initialChats);
             return initialChats;
         }
-        return JSON.parse(data);
+        const chats = JSON.parse(data);
+
+        return chats.map(chat => ({
+            nickname: '',
+            ...chat
+        }));
     } catch {
         return [];
     }
@@ -223,6 +228,7 @@ function generateInitialChats(username) {
         .map((user, index) => ({
             id: index + 1,
             name: user.name,
+            nickname: '',
             avatar: user.avatar,
             lastMessage: 'Bắt đầu cuộc trò chuyện',
             timestamp: 'Mới',
@@ -586,7 +592,7 @@ function renderConversations(chats) {
             <div class="conversation-info">
                 <div class="conversation-header">
                     <span class="conversation-name">
-                        ${chat.name}
+                        ${chat.nickname || chat.name}
                         ${chat.unread > 0 ? `<span class="badge-unread">${chat.unread}</span>` : ''}
                     </span>
                     <span class="conversation-time">${chat.timestamp ? formatTimestamp(chat.timestamp) : ''}</span>
@@ -628,7 +634,8 @@ function renderConversations(chats) {
         }
         menuHTML += `<div class="menu-item delete-chat" style="padding:10px 16px; cursor:pointer; font-size:14px; color:#e74c3c; transition:background 0.15s;">Xóa hội thoại</div>`;
         menuHTML += `<div class="menu-item classify" style="padding:10px 16px; cursor:pointer; font-size:14px; transition:background 0.15s;">Phân loại</div>`;
-        
+        menuHTML += `<div class="menu-item set-nickname" style="padding:10px 16px; cursor:pointer; font-size:14px;">Đặt biệt danh</div>`;
+
         menu.innerHTML = menuHTML;
         document.body.appendChild(menu);
 
@@ -655,6 +662,7 @@ function renderConversations(chats) {
             }
             menuHTML += `<div class="menu-item delete-chat" style="padding:10px 16px; cursor:pointer; font-size:14px; color:#e74c3c; transition:background 0.15s;">Xóa hội thoại</div>`;
             menuHTML += `<div class="menu-item classify" style="padding:10px 16px; cursor:pointer; font-size:14px; transition:background 0.15s;">Phân loại</div>`;
+            menuHTML += `<div class="menu-item set-nickname" style="padding:10px 16px; cursor:pointer; font-size:14px;">Đặt biệt danh</div>`;
 
             menu.innerHTML = menuHTML;
 
@@ -844,6 +852,43 @@ function renderConversations(chats) {
                 categoryMenu.style.display = 'block';
                 categoryMenu.currentChat = chat;
             }
+
+            // Set nickname
+            else if (target.classList.contains('set-nickname')) {
+                e.stopPropagation();
+
+                const currentNickname = chat.nickname || '';
+
+                const nickname = await customPrompt(
+                    'Đặt biệt danh',
+                    `Đặt biệt danh cho ${chat.name}:`,
+                    currentNickname
+                );
+
+                if (nickname === null) {
+                    menu.style.display = 'none';
+                    return;
+                }
+
+                // Xóa nickname nếu để trống
+                if (nickname.trim() === '') {
+                    delete chat.nickname;
+                } else {
+                    chat.nickname = nickname.trim();
+                }
+
+                saveUserChats(cu, allChats);
+
+                // Nếu đang mở chat này → cập nhật header
+                if (currentChat && currentChat.id === chat.id) {
+                    chatName.textContent = chat.nickname || chat.name;
+                }
+
+                renderConversations(allChats);
+                menu.style.display = 'none';
+
+                showNotification('Đã cập nhật biệt danh');
+            }
         });
 
         div.addEventListener('click', () => openChat(chat));
@@ -959,7 +1004,7 @@ function openChat(chat) {
     emptyChat.style.display = 'none';
 
     // Update header
-    chatName.textContent = chat.name;
+    chatName.textContent = chat.nickname || chat.name;
     chatAvatar.src = chat.avatar;
     chatStatus.textContent = chat.online ? 'Đang hoạt động' : 'Không hoạt động';
     chatStatus.className = `status ${chat.online ? 'online' : ''}`;
