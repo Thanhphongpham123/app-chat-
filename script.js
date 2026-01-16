@@ -2061,7 +2061,7 @@ function renderPinnedMessage() {
     }
     content.innerHTML = `
         <div class="pinned-click" data-id="${pinned.id}">
-            <span class="pin-icon">📌</span>
+            <span class="pin-icon"></span>
             <b>${pinned.senderName}:</b>
             ${pinned.text || '[Hình ảnh]'}
         </div>
@@ -2308,7 +2308,7 @@ function sendSticker(stickerUrl) {
     };
     
     currentChat.messages.push(message);
-    currentChat.lastMessage = '🎨 Sticker';
+    currentChat.lastMessage = ' Sticker';
     currentChat.timestamp = Date.now();
     
     const currentUser = getCurrentUser();
@@ -3046,7 +3046,7 @@ function confirmForward() {
         if (messageToForward.type === 'voice') {
             chat.lastMessage = '🎤 Tin nhắn thoại';
         } else if (messageToForward.type === 'sticker') {
-            chat.lastMessage = '🎨 Sticker';
+            chat.lastMessage = ' Sticker';
         } else if (messageToForward.image) {
             chat.lastMessage = '📷 Hình ảnh';
         } else {
@@ -3261,14 +3261,14 @@ function connectWs(url) {
             return;
         }
 
-        console.log('📥 WebSocket message received:', msg);
+        console.log(' WebSocket message received:', msg);
 
         // Xử lý response LOGIN: lưu RE_LOGIN_CODE
         if (msg.event === 'RE_LOGIN' && msg.status === 'success') {
             const reLoginCode = msg.data?.RE_LOGIN_CODE;
             if (reLoginCode) {
                 localStorage.setItem(AUTH_RELOGIN_CODE_KEY, reLoginCode);
-                console.log('✅ Received RE_LOGIN_CODE:', reLoginCode);
+                console.log(' Received RE_LOGIN_CODE:', reLoginCode);
             }
             return;
         }
@@ -3309,19 +3309,19 @@ function connectWs(url) {
         const reLoginCode = localStorage.getItem(AUTH_RELOGIN_CODE_KEY);
         
         if (currentUser && reLoginCode) {
-            console.log('🔄 Attempting auto RE_LOGIN for user:', currentUser);
+            console.log(' Attempting auto RE_LOGIN for user:', currentUser);
             
             // Thử kết nối lại sau 2 giây
             setTimeout(() => {
                 if (wsUrl) {
-                    console.log('🔌 Reconnecting WebSocket...');
+                    console.log(' Reconnecting WebSocket...');
                     connectWs(wsUrl);
                     
                     // Gửi RE_LOGIN sau khi kết nối lại
                     setTimeout(() => {
                         if (window.api && typeof window.api.re_login === 'function') {
                             window.api.re_login(currentUser, reLoginCode);
-                            console.log('✅ Sent RE_LOGIN after reconnection');
+                            console.log(' Sent RE_LOGIN after reconnection');
                         }
                     }, 1000);
                 }
@@ -3349,7 +3349,7 @@ function _sendOnChat(eventName, payload) {
     }
     const msg = { action: 'onchat', data: { event: eventName, data: payload } };
     ws.send(JSON.stringify(msg));
-    console.log('📤 Sent:', eventName, payload);
+    console.log(' Sent:', eventName, payload);
     return true;
 }
 
@@ -3361,7 +3361,7 @@ function _sendOnChatNoData(eventName) {
     }
     const msg = { action: 'onchat', data: { event: eventName } };
     ws.send(JSON.stringify(msg));
-    console.log('📤 Sent:', eventName);
+    console.log(' Sent:', eventName);
     return true;
 }
 
@@ -3370,56 +3370,56 @@ const api = {
     connect: connectWs,
     disconnect: disconnectWs,
     register: (user, pass) => {
-        console.log('🔐 Calling REGISTER API...');
+        console.log(' Calling REGISTER API...');
         return _sendOnChat('REGISTER', { user, pass });
     },
     login: (user, pass) => {
-        console.log('🔐 Calling LOGIN API...');
+        console.log(' Calling LOGIN API...');
         return _sendOnChat('LOGIN', { user, pass });
     },
     re_login: (user, code) => {
-        console.log('🔄 Calling RE_LOGIN API...');
+        console.log(' Calling RE_LOGIN API...');
         return _sendOnChat('RE_LOGIN', { user, code });
     },
     logout: () => {
-        console.log('🚪 Calling LOGOUT API...');
+        console.log(' Calling LOGOUT API...');
         return _sendOnChatNoData('LOGOUT');
     },
     createRoom: (name) => {
-        console.log('➕ Calling CREATE_ROOM API...');
+        console.log(' Calling CREATE_ROOM API...');
         return _sendOnChat('CREATE_ROOM', { name });
     },
     joinRoom: (name) => {
-        console.log('🚪 Calling JOIN_ROOM API...');
+        console.log(' Calling JOIN_ROOM API...');
         return _sendOnChat('JOIN_ROOM', { name });
     },
     getRoomChatMes: (name, page = 1) => {
-        console.log('📨 Calling GET_ROOM_CHAT_MES API...');
+        console.log(' Calling GET_ROOM_CHAT_MES API...');
         return _sendOnChat('GET_ROOM_CHAT_MES', { name, page });
     },
     getPeopleChatMes: (name, page = 1) => {
-        console.log('📨 Calling GET_PEOPLE_CHAT_MES API...');
+        console.log(' Calling GET_PEOPLE_CHAT_MES API...');
         return _sendOnChat('GET_PEOPLE_CHAT_MES', { name, page });
     },
     sendChatRoom: (to, mes) => {
-        console.log('📨 Calling SEND_CHAT (room) API...');
+        console.log(' Calling SEND_CHAT (room) API...');
         return _sendOnChat('SEND_CHAT', { type: 'room', to, mes });
     },
     sendChatPeople: (to, mes) => {
-        console.log('📨 Calling SEND_CHAT (people) API...');
+        console.log(' Calling SEND_CHAT (people) API...');
         return _sendOnChat('SEND_CHAT', { type: 'people', to, mes });
     },
     checkUserOnline: (user) => {
-        console.log('👤 Calling CHECK_USER_ONLINE API...');
+        console.log(' Calling CHECK_USER_ONLINE API...');
         return _sendOnChat('CHECK_USER_ONLINE', { user });
     },
     checkUserExist: (user) => {
-        console.log('🔍 Calling CHECK_USER_EXIST API...');
+        console.log(' Calling CHECK_USER_EXIST API...');
         return _sendOnChat('CHECK_USER_EXIST', { user });
     },
     checkUser: (user) => _sendOnChat('CHECK_USER', { user }),
     getUserList: () => {
-        console.log('📜 Calling GET_USER_LIST API...');
+        console.log(' Calling GET_USER_LIST API...');
         return _sendOnChatNoData('GET_USER_LIST');
     },
     // send arbitrary payload (object) as an onchat action
@@ -3486,11 +3486,11 @@ function startCall(type) {
     callModal.style.display = 'flex';
     
     // Play ringtone sound (simulated)
-    console.log('📞 Calling:', currentChat.name, 'Type:', type);
+    console.log(' Calling:', currentChat.name, 'Type:', type);
     
     // Fake API call
     // API call (nếu cần)
-    console.log('📤 API: START_CALL', { to: currentChat.name, type });
+    console.log(' API: START_CALL', { to: currentChat.name, type });
     
     // Simulate answer after 2-3 seconds
     setTimeout(() => {
@@ -3506,7 +3506,7 @@ function answerCall() {
     callStatus.style.display = 'none';
     callTimerEl.style.display = 'block';
     
-    console.log('📞 Call answered');
+    console.log(' Call answered');
     
     // Reset and start timer
     callDuration = 0;
@@ -3538,11 +3538,11 @@ function endCall() {
     }
     
     const finalDuration = callDuration;
-    console.log('📞 Call ended. Duration:', finalDuration, 'seconds');
+    console.log(' Call ended. Duration:', finalDuration, 'seconds');
     
     // Fake API call
     // API call (nếu cần)
-    console.log('📤 API: END_CALL', { duration: finalDuration, type: currentCallType });
+    console.log(' API: END_CALL', { duration: finalDuration, type: currentCallType });
     
     // Add system message to chat
     if (currentChat && finalDuration > 0) {
@@ -3581,7 +3581,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Kết nối WebSocket tự động
     const WS_URL = 'wss://chat.longapp.site/chat/chat';
-    console.log('🔌 Connecting to WebSocket:', WS_URL);
+    console.log(' Connecting to WebSocket:', WS_URL);
     window.api.connect(WS_URL);
 });
 
