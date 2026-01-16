@@ -596,6 +596,9 @@ function renderConversations(chats) {
                 </div>
             </div>
             ${chat.online ? '<div class="online-badge"></div>' : ''}
+            <div class="conversation-options">
+                <i class="fas fa-ellipsis-v"></i>
+            </div>
         `;
 
         // Tạo context menu cho right-click trên avatar
@@ -629,9 +632,9 @@ function renderConversations(chats) {
         menu.innerHTML = menuHTML;
         document.body.appendChild(menu);
 
-        // Right-click trên avatar để mở context menu
-        const avatar = div.querySelector('.conversation-avatar');
-        avatar.addEventListener('contextmenu', (e) => {
+        // Click vào icon 3 chấm để mở context menu
+        const optionsBtn = div.querySelector('.conversation-options');
+        optionsBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
 
