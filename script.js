@@ -288,7 +288,12 @@ function loadUserChats(username) {
             saveUserChats(username, initialChats);
             return initialChats;
         }
-        return JSON.parse(data);
+        const chats = JSON.parse(data);
+
+        return chats.map(chat => ({
+            nickname: '',
+            ...chat
+        }));
     } catch {
         return [];
     }
@@ -309,6 +314,7 @@ function generateInitialChats(username) {
         .map((user, index) => ({
             id: index + 1,
             name: user.name,
+            nickname: '',
             avatar: user.avatar,
             lastMessage: 'Bắt đầu cuộc trò chuyện',
             timestamp: 'Mới',
@@ -619,7 +625,11 @@ function renderConversations(chats) {
             <div class="conversation-info">
                 <div class="conversation-header">
                     <span class="conversation-name">
+<<<<<<< HEAD
                         <span class="name-text">${chat.name}</span>
+=======
+                        ${chat.nickname || chat.name}
+>>>>>>> 522b2e2 (Dat biet danh trong chat 1 1)
                         ${chat.unread > 0 ? `<span class="badge-unread">${chat.unread}</span>` : ''}
                     </span>
                     <span class="conversation-menu-icon" style="display:none; cursor:pointer;">⋯</span>
@@ -651,11 +661,31 @@ function renderConversations(chats) {
             cursor:pointer;
             z-index:10;
         `;
+<<<<<<< HEAD
         menu.innerHTML = `
             <div class="conv-menu-item delete">Xóa hội thoại</div>
             <div class="conv-menu-item classify">Phân loại</div>
         `;
         div.appendChild(menu);
+=======
+        const hasMessages = chat.messages && chat.messages.length > 0;
+        const hasHiddenMessages = chat.hiddenMessages && chat.hiddenMessages.length > 0;
+        
+        let menuHTML = '';
+        if (hasMessages) {
+            menuHTML += `<div class="menu-item hide-messages" style="padding:10px 16px; cursor:pointer; font-size:14px; transition:background 0.15s;">Ẩn tin nhắn</div>`;
+        } else if (hasHiddenMessages) {
+            menuHTML += `<div class="menu-item restore-messages" style="padding:10px 16px; cursor:pointer; font-size:14px; color:#27ae60; transition:background 0.15s;">Khôi phục tin nhắn</div>`;
+        } else {
+            menuHTML += `<div class="menu-item no-action" style="padding:10px 16px; font-size:14px; color:#999; cursor:not-allowed;">Không có tin nhắn</div>`;
+        }
+        menuHTML += `<div class="menu-item delete-chat" style="padding:10px 16px; cursor:pointer; font-size:14px; color:#e74c3c; transition:background 0.15s;">Xóa hội thoại</div>`;
+        menuHTML += `<div class="menu-item classify" style="padding:10px 16px; cursor:pointer; font-size:14px; transition:background 0.15s;">Phân loại</div>`;
+        menuHTML += `<div class="menu-item set-nickname" style="padding:10px 16px; cursor:pointer; font-size:14px;">Đặt biệt danh</div>`;
+
+        menu.innerHTML = menuHTML;
+        document.body.appendChild(menu);
+>>>>>>> 522b2e2 (Dat biet danh trong chat 1 1)
 
         //xu ly hover
         const timeEl = div.querySelector('.conversation-time');
@@ -681,9 +711,198 @@ function renderConversations(chats) {
         menu.addEventListener('click', (e) => {
             e.stopPropagation();
 
+<<<<<<< HEAD
             // xóa hội thoại
             if (e.target.closest('.delete')) {
                 if (!confirm(`Xóa hội thoại với ${chat.name}?`)) return;
+=======
+            // Ẩn tất cả menu khác
+            document.querySelectorAll('.context-menu').forEach(m => m.style.display = 'none');
+
+            // Cập nhật menu dựa trên trạng thái hiện tại
+            const hasMessages = chat.messages && chat.messages.length > 0;
+            const hasHiddenMessages = chat.hiddenMessages && chat.hiddenMessages.length > 0;
+
+            let menuHTML = '';
+            if (hasMessages) {
+                menuHTML += `<div class="menu-item hide-messages" style="padding:10px 16px; cursor:pointer; font-size:14px; transition:background 0.15s;">Ẩn tin nhắn</div>`;
+            } else if (hasHiddenMessages) {
+                menuHTML += `<div class="menu-item restore-messages" style="padding:10px 16px; cursor:pointer; font-size:14px; color:#27ae60; transition:background 0.15s;">Khôi phục tin nhắn</div>`;
+            } else {
+                menuHTML += `<div class="menu-item no-action" style="padding:10px 16px; font-size:14px; color:#999; cursor:not-allowed;">Không có tin nhắn</div>`;
+            }
+            menuHTML += `<div class="menu-item delete-chat" style="padding:10px 16px; cursor:pointer; font-size:14px; color:#e74c3c; transition:background 0.15s;">Xóa hội thoại</div>`;
+            menuHTML += `<div class="menu-item classify" style="padding:10px 16px; cursor:pointer; font-size:14px; transition:background 0.15s;">Phân loại</div>`;
+            menuHTML += `<div class="menu-item set-nickname" style="padding:10px 16px; cursor:pointer; font-size:14px;">Đặt biệt danh</div>`;
+
+            menu.innerHTML = menuHTML;
+
+            // Re-attach hover effects
+            menu.querySelectorAll('.menu-item').forEach(item => {
+                item.addEventListener('mouseenter', () => {
+                    if (item.style.cursor !== 'not-allowed') {
+                        item.style.background = '#f5f5f5';
+                    }
+                });
+                item.addEventListener('mouseleave', () => {
+                    item.style.background = 'transparent';
+                });
+            });
+
+            // Hiển thị menu tại vị trí chuột
+            menu.style.display = 'block';
+            menu.style.left = e.pageX + 'px';
+            menu.style.top = e.pageY + 'px';
+
+            // Đảm bảo menu không bị tràn ra ngoài màn hình
+            const rect = menu.getBoundingClientRect();
+            if (rect.right > window.innerWidth) {
+                menu.style.left = (e.pageX - rect.width) + 'px';
+            }
+            if (rect.bottom > window.innerHeight) {
+                menu.style.top = (e.pageY - rect.height) + 'px';
+            }
+        });
+
+        // Click ra ngoài đóng menu
+        document.addEventListener('click', () => {
+            menu.style.display = 'none';
+        });
+        
+        // Hover effect cho menu items
+        menu.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('mouseenter', () => {
+                if (item.style.cursor !== 'not-allowed') {
+                    item.style.background = '#f5f5f5';
+                }
+            });
+            item.addEventListener('mouseleave', () => {
+                item.style.background = 'transparent';
+            });
+        });
+        
+        // Menu actions using event delegation to support dynamic content
+        menu.addEventListener('click', async (e) => {
+            const target = e.target.closest('.menu-item');
+            if (!target) return;
+
+            const cu = getCurrentUser();
+            if (!cu) {
+                alert('Vui lòng đăng nhập');
+                return;
+            }
+
+            // Hide messages
+            if (target.classList.contains('hide-messages')) {
+                e.stopPropagation();
+
+                if (!chat.messages || chat.messages.length === 0) {
+                    menu.style.display = 'none';
+                    return;
+                }
+
+                const confirmed = await customConfirm('Ẩn tin nhắn', `Ẩn toàn bộ tin nhắn với ${chat.name}? Bạn có thể khôi phục sau.`);
+                if (!confirmed) {
+                    menu.style.display = 'none';
+                    return;
+                }
+
+                // Yêu cầu nhập mật khẩu
+                const password = await customPrompt('Mật khẩu', 'Nhập mật khẩu để bảo vệ tin nhắn ẩn:\n(Bạn sẽ cần mật khẩu này để khôi phục tin nhắn)', '', true);
+                
+                if (password === null) {
+                    menu.style.display = 'none';
+                    return; // Người dùng hủy
+                }
+                
+                if (!password || password.trim() === '') {
+                    showNotification('Mật khẩu không được để trống!');
+                    menu.style.display = 'none';
+                    return;
+                }
+
+                // Xác nhận mật khẩu
+                const confirmPassword = await customPrompt('Xác nhận mật khẩu', 'Xác nhận lại mật khẩu:', '', true);
+                
+                if (confirmPassword !== password) {
+                    showNotification('Mật khẩu xác nhận không khớp!');
+                    menu.style.display = 'none';
+                    return;
+                }
+
+                // Backup tin nhắn trước khi xóa và lưu mật khẩu
+                chat.hiddenMessages = [...chat.messages];
+                chat.hiddenPassword = password; // Lưu mật khẩu
+                chat.messages = [];
+                chat.lastMessage = '🔒 Tin nhắn đã được ẩn và bảo vệ';
+                chat.timestamp = 'Bây giờ';
+                chat.unread = 0;
+
+                if (currentChat && currentChat.id === chat.id) {
+                    renderMessages(chat.messages);
+                }
+
+                saveUserChats(cu, allChats);
+                renderConversations(allChats);
+                menu.style.display = 'none';
+
+                showNotification('Đã ẩn và bảo vệ tin nhắn bằng mật khẩu!');
+            }
+
+            // Restore messages
+            else if (target.classList.contains('restore-messages')) {
+                e.stopPropagation();
+
+                if (!chat.hiddenMessages || chat.hiddenMessages.length === 0) {
+                    menu.style.display = 'none';
+                    return;
+                }
+
+                // Yêu cầu nhập mật khẩu để khôi phục
+                const inputPassword = await customPrompt('Khôi phục tin nhắn', `Nhập mật khẩu để khôi phục tin nhắn với ${chat.name}:`, '', true);
+                
+                if (inputPassword === null) {
+                    menu.style.display = 'none';
+                    return; // Người dùng hủy
+                }
+
+                // Kiểm tra mật khẩu
+                if (inputPassword !== chat.hiddenPassword) {
+                    showNotification('Mật khẩu không đúng! Không thể khôi phục tin nhắn.');
+                    menu.style.display = 'none';
+                    return;
+                }
+
+                // Khôi phục từ backup
+                chat.messages = [...chat.hiddenMessages];
+                chat.hiddenMessages = [];
+                chat.hiddenPassword = null; // Xóa mật khẩu sau khi khôi phục
+
+                // Cập nhật lastMessage từ tin nhắn cuối
+                if (chat.messages.length > 0) {
+                    const lastMsg = chat.messages[chat.messages.length - 1];
+                    chat.lastMessage = lastMsg.text || lastMsg.image || 'Tin nhắn';
+                }
+                chat.timestamp = 'Bây giờ';
+
+                if (currentChat && currentChat.id === chat.id) {
+                    renderMessages(chat.messages);
+                }
+
+                saveUserChats(cu, allChats);
+                renderConversations(allChats);
+                menu.style.display = 'none';
+
+                showNotification('Đã khôi phục tin nhắn thành công!');
+            }
+
+            // Delete conversation
+            else if (target.classList.contains('delete-chat')) {
+                e.stopPropagation();
+                const confirmed = await customConfirm('Xóa hội thoại', `Xóa hội thoại với ${chat.name}?`);
+                if (!confirmed) return;
+
+>>>>>>> 522b2e2 (Dat biet danh trong chat 1 1)
                 allChats = allChats.filter(c => c.id !== chat.id);
                 saveUserChats(getCurrentUser(), allChats);
                 if (currentChat?.id === chat.id) {
@@ -703,6 +922,43 @@ function renderConversations(chats) {
                 categoryMenu.style.left = rect.right + 6 + 'px';
                 categoryMenu.style.display = 'block';
                 categoryMenu.currentChat = chat;
+            }
+
+            // Set nickname
+            else if (target.classList.contains('set-nickname')) {
+                e.stopPropagation();
+
+                const currentNickname = chat.nickname || '';
+
+                const nickname = await customPrompt(
+                    'Đặt biệt danh',
+                    `Đặt biệt danh cho ${chat.name}:`,
+                    currentNickname
+                );
+
+                if (nickname === null) {
+                    menu.style.display = 'none';
+                    return;
+                }
+
+                // Xóa nickname nếu để trống
+                if (nickname.trim() === '') {
+                    delete chat.nickname;
+                } else {
+                    chat.nickname = nickname.trim();
+                }
+
+                saveUserChats(cu, allChats);
+
+                // Nếu đang mở chat này → cập nhật header
+                if (currentChat && currentChat.id === chat.id) {
+                    chatName.textContent = chat.nickname || chat.name;
+                }
+
+                renderConversations(allChats);
+                menu.style.display = 'none';
+
+                showNotification('Đã cập nhật biệt danh');
             }
         });
 
@@ -816,7 +1072,7 @@ function openChat(chat) {
     emptyChat.style.display = 'none';
 
     // Update header
-    chatName.textContent = chat.name;
+    chatName.textContent = chat.nickname || chat.name;
     chatAvatar.src = chat.avatar;
     chatStatus.textContent = chat.online ? 'Đang hoạt động' : 'Không hoạt động';
     chatStatus.className = `status ${chat.online ? 'online' : ''}`;
