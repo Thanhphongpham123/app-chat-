@@ -1,4 +1,4 @@
-// Mock data
+// Dữ liệu mẫu
 const mockData = [
     {
         id: 1,
@@ -48,7 +48,7 @@ let conversationFilter = "all";
 let activeCategoryFilters = new Set();
 let reactionPickerOpen = false;
 
-// DOM Elements
+// Các phần tử DOM
 const conversationsList = document.getElementById('conversationsList');
 const messagesContainer = document.getElementById('messagesContainer');
 const messageInput = document.getElementById('messageInput');
@@ -75,7 +75,7 @@ const CHAT_CATEGORIES = [
     { key: 'dong-nghiep', label: 'Đồng nghiệp', color: '#8e24aa' }
 ];
 
-//kh filter
+// Bộ lọc khách hàng
 filterAllBtn.onclick = () => {
     conversationFilter = "all";
     filterAllBtn.classList.add("active");
@@ -90,12 +90,12 @@ filterUnreadBtn.onclick = () => {
     renderConversations(allChats);
 };
 
-// mention box
+// Hộp nhắc đến
 let mentionBox = document.createElement("div");
 mentionBox.className = "mention-box";
 document.body.appendChild(mentionBox);
 
-// Initialize
+// Khởi tạo
 function init() {
     // Tạo sẵn các tài khoản mặc định nếu chưa có
     initializeDefaultAccounts();
@@ -113,7 +113,7 @@ function init() {
     attachEvents();
     wireAuthUI();
     updateUserUI();
-    // Group notification toggle UI
+    // Giao diện bật/tắt thông báo nhóm
     try {
         const groupToggle = document.getElementById('groupNotifToggle');
         if (groupToggle) {
@@ -125,7 +125,7 @@ function init() {
     } catch (e) {
         console.warn('groupNotif toggle init error', e);
     }
-    // if not logged in, show auth overlay
+    // Nếu chưa đăng nhập, hiển thị overlay xác thực
     if (!currentUser) showAuthOverlay(true);
 }
 
@@ -154,7 +154,7 @@ function initializeDefaultAccounts() {
 }
 
 // -----------------------------
-// Client-side Auth (localStorage)
+// Xác thực phía Client (localStorage)
 // -----------------------------
 const AUTH_USERS_KEY = 'appChat_users';
 const AUTH_CURRENT_KEY = 'appChat_currentUser';
@@ -165,7 +165,7 @@ const SHOW_HIDDEN_KEY = 'appChat_showHiddenChats';
 
 function isGroupNotificationEnabled() {
     const v = localStorage.getItem(GROUP_NOTIF_KEY);
-    // default: enabled
+    // Mặc định: bật
     if (v === null) return true;
     return v === '1';
 }
@@ -184,9 +184,9 @@ function setShowHiddenChats(enabled) {
     localStorage.setItem(SHOW_HIDDEN_KEY, enabled ? '1' : '0');
 }
 
-// ===== API LAYER (WebSocket only) =====
+// ===== LỚP API (Chỉ WebSocket) =====
 // Tất cả fake API đã được xóa - chỉ sử dụng WebSocket API thật
-// ===== END API LAYER =====
+// ===== KẾT THÚC LỚP API =====
 
 function getUserChatsKey(username) {
     return CHATS_KEY_PREFIX + username;
@@ -387,7 +387,7 @@ function updateUserUI() {
     }
 }
 
-// Wire auth UI
+// Kết nối giao diện xác thực
 function wireAuthUI() {
     const tabLogin = document.getElementById('tabLogin');
     const tabRegister = document.getElementById('tabRegister');
@@ -443,7 +443,7 @@ function wireAuthUI() {
     });
 }
 
-//danh dau da doc
+// đánh dấu đã đọc
 function markAllAsRead() {
     allChats.forEach(c => c.unread = 0);
     const cu = getCurrentUser?.();
@@ -451,14 +451,14 @@ function markAllAsRead() {
     renderConversations(allChats);
 }
 
-// mo popup
+// mở popup
 filterMenuIcon.onclick = (e) => {
     e.stopPropagation();
     filterPopupMenu.style.display =
         filterPopupMenu.style.display === "block" ? "none" : "block";
 };
 
-//khi nhan ra ngoai la dong
+// khi nhấn ra ngoài là đóng
 document.addEventListener("click", () => {
     filterPopupMenu.style.display = "none";
 });
@@ -469,7 +469,7 @@ markAllRead.onclick = (e) => {
     filterPopupMenu.style.display = "none";
 };
 
-//render popup loc phan loai
+// render popup lọc phân loại
 function renderCategoryFilterPopup() {
     const list = categoryFilterPopup.querySelector('.filter-category-list');
     list.innerHTML = CHAT_CATEGORIES.map(c => `
@@ -483,7 +483,7 @@ function renderCategoryFilterPopup() {
     `).join('');
 }
 
-//xu ly su kien loc phan laoi
+// xử lý sự kiện lọc phân loại
 filterCategoryBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     renderCategoryFilterPopup();
@@ -493,7 +493,7 @@ filterCategoryBtn.addEventListener('click', (e) => {
     categoryFilterPopup.style.display = 'block';
 });
 
-//xu ly su kien tick de loc phan loai
+// xử lý sự kiện tick để lọc phân loại
 categoryFilterPopup.addEventListener('change', (e) => {
     const checkbox = e.target;
     if (checkbox.tagName !== 'INPUT') return;
@@ -510,13 +510,13 @@ categoryFilterPopup.addEventListener('click', (e) => {
     e.stopPropagation();
 });
 
-//dong pop loc phan loai
+// đóng popup lọc phân loại
 document.addEventListener('click', () => {
     categoryFilterPopup.style.display = 'none';
 });
 
 
-//category menu
+// menu phân loại
 const categoryMenu = document.createElement('div');
 categoryMenu.className = 'conv-menu';
 categoryMenu.style.display = 'none';
@@ -529,7 +529,7 @@ categoryMenu.innerHTML = CHAT_CATEGORIES.map(c => `
 `).join('');
 document.body.appendChild(categoryMenu);
 
-//xu ly sk category menu
+// xử lý sự kiện menu phân loại
 categoryMenu.addEventListener('click', (e) => {
     e.stopPropagation();
     const item = e.target.closest('.category-item');
@@ -537,7 +537,7 @@ categoryMenu.addEventListener('click', (e) => {
     const chat = categoryMenu.currentChat;
     const selected = item.dataset.category;
 
-    // chon lai cung loai thi bo
+    // chọn lại cùng loại thì bỏ
     if (chat.category === selected) {
         delete chat.category;
     } else {
@@ -548,24 +548,24 @@ categoryMenu.addEventListener('click', (e) => {
     renderConversations(allChats);
 });
 
-//dong tat ca menu khi nhan ra ngoai
+// đóng tất cả menu khi nhấn ra ngoài
 document.addEventListener('click', () => {
     document.querySelectorAll('.conv-menu').forEach(m => {
         m.style.display = 'none';
     });
 });
 
-// Render conversations list
+// Hiển thị danh sách cuộc trò chuyện
 function renderConversations(chats) {
     conversationsList.innerHTML = '';
 
-    //loc theo tag
+    // lọc theo tag
     let chatsToRender = chats || [];
     if (conversationFilter === "unread") {
         chatsToRender = chatsToRender.filter(c => c.unread > 0);
     }
 
-    //loc theo o tim kiem
+    // lọc theo ô tìm kiếm
     const keyword = searchInput.value.trim().toLowerCase();
     if (keyword) {
         chatsToRender = chatsToRender.filter(c =>
@@ -580,7 +580,7 @@ function renderConversations(chats) {
         );
     }
 
-    // render ds
+    // hiển thị danh sách
     (chatsToRender || []).forEach(chat => {
         if (!chat) return;
         const div = document.createElement('div');
@@ -997,7 +997,7 @@ setInterval(() => {
 }, 30 * 1000);
 
 
-// Open chat
+// Mở chat
 function openChat(chat) {
     currentChat = chat;
     chatWindow.style.display = 'flex';
@@ -1048,6 +1048,7 @@ function openChat(chat) {
     if (infoBtn) infoBtn.style.display = 'inline-flex';
 }
 
+// Đặt người dùng hoạt động
 function setUserActive(chat) {
     chat.online = true;
     chat.lastActive = Date.now();
@@ -1084,7 +1085,7 @@ function setUserActive(chat) {
 }
 
 
-// Open info panel (shows group avatar controls when current chat is a group)
+// Mở bảng thông tin (hiển thị điều khiển avatar nhóm khi đang mở chat nhóm)
 function openChangeAvatarModal() {
     try {
         console.log('openChangeAvatarModal called', { currentChat });
@@ -1609,7 +1610,7 @@ function openChangeAvatarModal() {
     }
 }
 
-// Process an image source (dataURL or URL) into a square dataURL of given size.
+// Xử lý nguồn ảnh (dataURL hoặc URL) thành dataURL hình vuông với kích thước cho trước.
 // callback(resultDataUrl, err)
 function processImageToSquare(src, size, callback) {
     const img = new Image();
@@ -1639,7 +1640,7 @@ function processImageToSquare(src, size, callback) {
     img.src = src;
 }
 
-// Render messages
+// Hiển thị tin nhắn
 function renderMessages(messages) {
     messagesContainer.innerHTML = '';
 
@@ -2044,7 +2045,7 @@ function renderMessages(messages) {
         msgDiv.appendChild(timeDiv);
         messagesContainer.appendChild(msgDiv);
     });
-    // Scroll to bottom
+    // Cuộn xuống cuối
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
@@ -2132,7 +2133,7 @@ function highlightMentions(text){
 }
 
 // ========================================
-// REACTION FUNCTIONALITY
+// CHỨC NĂNG REACTION
 // ========================================
 function addReaction(msg, emoji) {
     const prevScroll = messagesContainer.scrollTop;
@@ -2231,7 +2232,7 @@ function renderReactions(msg, container) {
 }
 
 // ========================================
-// STICKER FUNCTIONALITY
+// CHỨC NĂNG STICKER
 // ========================================
 const STICKERS = [
     'https://cdn-icons-png.flaticon.com/512/742/742751.png',
@@ -2387,7 +2388,7 @@ function handleIncomingMessage(data) {
     }
 }
 
-// Send message
+// Gửi tin nhắn
 function sendMessage() {
     if (!currentChat) return;
     const text = messageInput.value.trim();
@@ -2500,7 +2501,7 @@ function sendMessage() {
     }, 800);
 }
 
-// gui tin nhan he thong
+// Gửi tin nhắn hệ thống
 function addSystemMessage(chat, text) {
     if (!chat || !chat.messages) return;
     const msg = {
@@ -2534,7 +2535,7 @@ function simulateSendResult(msg) {
 }
 
 
-// Search
+// Tìm kiếm
 function searchChats(query) {
     const filtered = allChats.filter(chat =>
         chat.name.toLowerCase().includes(query.toLowerCase()) ||
@@ -2543,7 +2544,7 @@ function searchChats(query) {
     renderConversations(filtered);
 }
 
-// Create a group chat (allows any number of members >= 2 including current user)
+// Tạo nhóm chat (cho phép bất kỳ số lượng thành viên nào >= 2 bao gồm người dùng hiện tại)
 function createGroup(members, groupName) {
     const currentUser = getCurrentUser();
     if (!currentUser) {
@@ -2602,7 +2603,7 @@ function createGroupPrompt() {
     openCreateGroupModal();
 }
 
-// Modal-based group creation UI
+// Giao diện tạo nhóm dựa trên Modal
 function openCreateGroupModal() {
     const currentUser = getCurrentUser();
     if (!currentUser) return alert('Vui lòng đăng nhập để tạo nhóm');
@@ -2698,7 +2699,7 @@ function openCreateGroupModal() {
     confirm.addEventListener('click', onConfirm);
 }
 
-// Utility
+// Tiện ích
 function escapeHtml(text) {
     const map = {
         '&': '&amp;',
@@ -2710,7 +2711,7 @@ function escapeHtml(text) {
     return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-// Events
+// Sự kiện
 function attachEvents() {
     sendBtn.addEventListener('click', sendMessage);
 
@@ -2925,7 +2926,7 @@ document.addEventListener('DOMContentLoaded', () => {
 initPinnedMenu();
 
 // ========================================
-// FORWARD MESSAGE FUNCTIONALITY
+// CHỨC NĂNG CHUYỂN TIẾP TIN NHẮN
 // ========================================
 let messageToForward = null;
 let selectedForwardChats = new Set();
@@ -3064,7 +3065,7 @@ function confirmForward() {
     showNotification('Đã chuyển tiếp tin nhắn thành công');
 }
 
-// Custom notification function
+// Hàm thông báo tùy chỉnh
 function showNotification(message) {
     const notification = document.getElementById('customNotification');
     const messageEl = document.getElementById('notificationMessage');
@@ -3080,7 +3081,7 @@ function showNotification(message) {
     }, 3000);
 }
 
-// Custom prompt function
+// Hàm prompt tùy chỉnh
 function customPrompt(title, message, defaultValue = '', isPassword = false) {
     return new Promise((resolve) => {
         const modal = document.getElementById('customPrompt');
@@ -3129,7 +3130,7 @@ function customPrompt(title, message, defaultValue = '', isPassword = false) {
     });
 }
 
-// Custom confirm function
+// Hàm confirm tùy chỉnh
 function customConfirm(title, message) {
     return new Promise((resolve) => {
         const modal = document.getElementById('customConfirm');
@@ -3212,7 +3213,7 @@ if (forwardModal) {
     });
 }
 
-// Start
+// Khởi động
 init();
 
 const darkModeToggle = document.getElementById("darkModeToggle");
@@ -3437,7 +3438,7 @@ const api = {
 window.api = api;
 console.log('API helpers loaded. Use window.api.connect(url) to connect.');
 
-// ========== VOICE/VIDEO CALL FEATURE ==========
+// ========== TÍNH NĂNG GỌI THOẠI/VIDEO ==========
 let callTimer = null;
 let callDuration = 0;
 let currentCallType = null;
@@ -3593,7 +3594,7 @@ if (document.readyState === 'loading') {
 }
 
 // ========================================
-// VOICE RECORDING SYSTEM
+// HỆ THỐNG GHI ÂM THOẠI
 // ========================================
 let mediaRecorder = null;
 let audioChunks = [];
@@ -3762,7 +3763,7 @@ function processSendVoiceMessage() {
 initVoiceRecording();
 
 // ========================================
-// VOICE MESSAGE UI
+// GIAO DIỆN TIN NHẮN THOẠI
 // ========================================
 function createVoiceMessageElement(msg) {
     const voiceDiv = document.createElement('div');

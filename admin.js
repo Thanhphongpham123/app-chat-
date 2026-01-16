@@ -1,10 +1,10 @@
-// Auth keys
+// Khóa xác thực
 const AUTH_USERS_KEY = 'appChat_users';
 const AUTH_CURRENT_KEY = 'appChat_currentUser';
 const CHATS_KEY_PREFIX = 'appChat_chats_';
 const ACTIVITY_LOG_KEY = 'appChat_activityLogs';
 
-// Activity Log Actions
+// Các hành động Nhật ký Hoạt động
 const LOG_ACTIONS = {
     USER_CREATED: 'user_created',
     USER_EDITED: 'user_edited',
@@ -29,7 +29,7 @@ const LOG_ACTION_LABELS = {
     'logout': 'Đăng xuất Admin'
 };
 
-// Activity Log Functions
+// Các hàm Nhật ký Hoạt động
 function logActivity(action, target, details = '') {
     const logs = loadActivityLogs();
     const currentAdmin = localStorage.getItem(AUTH_CURRENT_KEY);
@@ -43,9 +43,9 @@ function logActivity(action, target, details = '') {
         details: details
     };
     
-    logs.unshift(log); // Add to beginning
+    logs.unshift(log); // Thêm vào đầu
     
-    // Keep only last 1000 logs
+    // Chỉ giữ lại 1000 nhật ký gần nhất
     if (logs.length > 1000) {
         logs.splice(1000);
     }
@@ -71,7 +71,7 @@ function clearOldLogs(daysToKeep = 30) {
             const logDate = parseVietnameseDate(log.timestamp);
             return logDate >= cutoffDate;
         } catch {
-            return true; // Keep if can't parse
+            return true; // Giữ lại nếu không thể phân tích
         }
     });
     
@@ -79,8 +79,9 @@ function clearOldLogs(daysToKeep = 30) {
     return logs.length - filtered.length;
 }
 
+// Phân tích ngày tháng tiếng Việt
 function parseVietnameseDate(dateStr) {
-    // Parse format: "15/01/2026, 10:30:45"
+    // Phân tích định dạng: "15/01/2026, 10:30:45"
     const parts = dateStr.split(', ');
     if (parts.length !== 2) return new Date(dateStr);
     
@@ -102,7 +103,7 @@ function exportLogs() {
     URL.revokeObjectURL(url);
 }
 
-// Check if user is admin
+// Kiểm tra xem người dùng có phải admin không
 function checkAdminAuth() {
     const currentUser = localStorage.getItem(AUTH_CURRENT_KEY);
     if (!currentUser || currentUser !== 'admin') {
@@ -111,13 +112,13 @@ function checkAdminAuth() {
         return false;
     }
     
-    // Log admin login
+    // Ghi nhật ký đăng nhập admin
     logActivity(LOG_ACTIONS.LOGIN, currentUser, 'Đăng nhập vào Admin Panel');
     
     return true;
 }
 
-// Load users from localStorage
+// Tải danh sách người dùng từ localStorage
 function loadUsers() {
     try {
         return JSON.parse(localStorage.getItem(AUTH_USERS_KEY) || '[]');
@@ -126,17 +127,17 @@ function loadUsers() {
     }
 }
 
-// Save users to localStorage
+// Lưu danh sách người dùng vào localStorage
 function saveUsers(users) {
     localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(users));
 }
 
-// Hash password (simple encoding)
+// Mã hóa mật khẩu (mã hóa đơn giản)
 function hashPw(pw) {
     return btoa(pw);
 }
 
-// Initialize admin page
+// Khởi tạo trang admin
 function init() {
     if (!checkAdminAuth()) return;
     
@@ -147,17 +148,17 @@ function init() {
     // Wire up navigation
     setupNavigation();
     
-    // Wire up buttons
+    // Kết nối các nút
     setupEventListeners();
     
-    // Load dashboard data
+    // Tải dữ liệu dashboard
     loadDashboard();
     
-    // Load users list
+    // Tải danh sách người dùng
     loadUsersTable();
 }
 
-// Setup navigation
+// Thiết lập điều hướng
 function setupNavigation() {
     const navItems = document.querySelectorAll('.nav-item');
     const sections = document.querySelectorAll('.content-section');
@@ -194,7 +195,7 @@ function setupNavigation() {
     });
 }
 
-// Setup event listeners
+// Thiết lập các sự kiện
 function setupEventListeners() {
     // Logout
     document.getElementById('logoutBtn').addEventListener('click', logout);
@@ -245,7 +246,7 @@ function setupEventListeners() {
     setupLogListeners();
 }
 
-// Load dashboard data
+// Tải dữ liệu bảng điều khiển
 function loadDashboard() {
     const users = loadUsers();
     
@@ -271,7 +272,7 @@ function loadDashboard() {
     loadRecentActivity(users);
 }
 
-// Load recent activity
+// Tải hoạt động gần đây
 function loadRecentActivity(users) {
     const activityList = document.getElementById('recentActivity');
     activityList.innerHTML = '';
@@ -295,7 +296,7 @@ function loadRecentActivity(users) {
     }
 }
 
-// Load users table
+// Tải bảng người dùng
 function loadUsersTable() {
     const users = loadUsers();
     const tbody = document.getElementById('usersTableBody');
@@ -343,7 +344,7 @@ function loadUsersTable() {
     }
 }
 
-// Filter users
+// Lọc người dùng
 function filterUsers() {
     const searchTerm = document.getElementById('searchUser').value.toLowerCase();
     const roleFilter = document.getElementById('filterRole').value;
@@ -398,7 +399,7 @@ function filterUsers() {
     });
 }
 
-// Add new user
+// Thêm người dùng mới
 function addUser() {
     const username = document.getElementById('newUsername').value.trim();
     const password = document.getElementById('newPassword').value;
@@ -455,7 +456,7 @@ function addUser() {
     alert('Đã thêm tài khoản thành công');
 }
 
-// Edit user
+// Chỉnh sửa người dùng
 function editUser(username) {
     const users = loadUsers();
     const user = users.find(u => u.user === username);
@@ -688,7 +689,7 @@ function loadChatsTable() {
     }
 }
 
-// View chat detail
+// Xem chi tiết chat
 function viewChatDetail(username, chatId) {
     const chats = loadUserChats(username);
     const chat = chats.find(c => c.id === chatId);
@@ -698,7 +699,7 @@ function viewChatDetail(username, chatId) {
         return;
     }
     
-    // Fill modal info
+    // Điền thông tin modal
     document.getElementById('chatDetailName').textContent = chat.name;
     document.getElementById('chatOwner').textContent = username;
     document.getElementById('chatType').textContent = chat.isGroup ? 'Nhóm chat' : 'Chat 1-1';
@@ -779,7 +780,7 @@ function viewChatDetail(username, chatId) {
             messagesByDate[dateStr].push(msg);
         });
         
-        // Sort dates (newest first)
+        // Sắp xếp ngày (mới nhất trước)
         const sortedDates = Object.keys(messagesByDate).sort((a, b) => {
             // Always put "old messages" at the beginning
             if (a.includes('Tin nhắn cũ')) return -1;
@@ -795,7 +796,7 @@ function viewChatDetail(username, chatId) {
             return parseDate(a) - parseDate(b);
         });
         
-        // Display messages grouped by date
+        // Hiển thị tin nhắn được nhóm theo ngày
         sortedDates.forEach(dateStr => {
             // Add date separator with nice formatting
             const dateSeparator = document.createElement('div');
@@ -818,7 +819,7 @@ function viewChatDetail(username, chatId) {
                 const senderName = (msg.sender === 'me' || msg.sender === 'you') ? username : (msg.sender === 'system' ? 'Hệ thống' : chat.name);
                 const timestamp = msg.time || msg.timestamp || 'N/A';
                 
-                // Create header
+                // Tạo header
                 const headerDiv = document.createElement('div');
                 headerDiv.className = 'message-header';
                 headerDiv.innerHTML = `
@@ -827,7 +828,7 @@ function viewChatDetail(username, chatId) {
                 `;
                 msgDiv.appendChild(headerDiv);
                 
-                // Create content based on message type
+                // Tạo nội dung dựa trên loại tin nhắn
                 const contentDiv = document.createElement('div');
                 contentDiv.className = 'message-text';
                 
@@ -904,7 +905,7 @@ function deleteChat(username, chatId) {
     alert('Đã xóa cuộc trò chuyện');
 }
 
-// Load user chats
+// Tải chat của người dùng
 function loadUserChats(username) {
     try {
         return JSON.parse(localStorage.getItem(CHATS_KEY_PREFIX + username) || '[]');
@@ -913,7 +914,7 @@ function loadUserChats(username) {
     }
 }
 
-// Toggle dark mode
+// Chuyển đổi chế độ tối
 function toggleDarkMode() {
     document.body.classList.toggle('dark');
     const isDark = document.body.classList.contains('dark');
@@ -924,7 +925,7 @@ function toggleDarkMode() {
     icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
 }
 
-// Logout
+// Đăng xuất
 function logout() {
     if (!confirm('Đăng xuất khỏi trang quản trị?')) return;
     
@@ -936,7 +937,7 @@ function logout() {
 }
 
 // ============================================
-// ACTIVITY LOG FUNCTIONS
+// HÀM NHẬT KÝ HOẠT ĐỘNG
 // ============================================
 
 function setupLogListeners() {
@@ -1077,7 +1078,7 @@ function getActionColor(action) {
 }
 
 function showNotification(message) {
-    // Simple notification - you can enhance this
+    // Thông báo đơn giản - bạn có thể cải thiện điều này
     alert(message);
 }
 
@@ -1101,17 +1102,17 @@ if (localStorage.getItem('adminDarkMode') === 'on') {
 }
 
 // ============================================
-// ADVANCED SEARCH FUNCTIONS
+// HÀM TÌM KIẾM NÂNG CAO
 // ============================================
 
-// Initialize search section
+// Khởi tạo phần tìm kiếm
 function initSearchSection() {
     // Clear previous results
     document.getElementById('searchResults').style.display = 'none';
     document.getElementById('exportSearchBtn').style.display = 'none';
 }
 
-// Setup search event listeners
+// Thiết lập các sự kiện tìm kiếm
 function setupSearchListeners() {
     // Search tabs
     const searchTabs = document.querySelectorAll('.search-tab');
@@ -1143,7 +1144,7 @@ function setupSearchListeners() {
     document.getElementById('exportSearchBtn')?.addEventListener('click', exportSearchResults);
 }
 
-// Search messages
+// Tìm kiếm tin nhắn
 function searchMessages() {
     const content = document.getElementById('searchMessageContent').value.trim();
     
@@ -1187,7 +1188,7 @@ function searchMessages() {
     displaySearchResults(results, 'messages');
 }
 
-// Search users advanced
+// Tìm kiếm người dùng nâng cao
 function searchUsers() {
     const username = document.getElementById('searchUserName').value.trim();
     const role = document.getElementById('searchUserRole').value;
@@ -1239,7 +1240,7 @@ function searchUsers() {
     displaySearchResults(results, 'users');
 }
 
-// Search chats advanced
+// Tìm kiếm chat nâng cao
 function searchChatsAdvanced() {
     const chatName = document.getElementById('searchChatName').value.trim();
     
@@ -1276,7 +1277,7 @@ function searchChatsAdvanced() {
     displaySearchResults(results, 'chats');
 }
 
-// Display search results
+// Hiển thị kết quả tìm kiếm
 function displaySearchResults(results, type) {
     const resultsContainer = document.getElementById('searchResults');
     const resultsContent = document.getElementById('searchResultsContent');
@@ -1390,7 +1391,7 @@ function displaySearchResults(results, type) {
     window.currentSearchType = type;
 }
 
-// Highlight search term in text
+// Làm nổi bật từ khóa tìm kiếm trong văn bản
 function highlightSearchTerm(text, searchTerm) {
     if (!searchTerm) return escapeHtml(text);
     
@@ -1399,12 +1400,12 @@ function highlightSearchTerm(text, searchTerm) {
     return escapedText.replace(regex, '<span class="result-item-highlight">$1</span>');
 }
 
-// Escape regex special characters
+// Escape ký tự đặc biệt của regex
 function escapeRegex(str) {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// Parse date string to Date object
+// Phân tích chuỗi ngày thành đối tượng Date
 function parseDateString(dateStr) {
     if (!dateStr) return new Date();
     
@@ -1418,7 +1419,7 @@ function parseDateString(dateStr) {
     return new Date(dateStr);
 }
 
-// Clear search results
+// Xóa kết quả tìm kiếm
 function clearSearchResults() {
     document.getElementById('searchResults').style.display = 'none';
     document.getElementById('exportSearchBtn').style.display = 'none';
@@ -1437,7 +1438,7 @@ function clearSearchResults() {
     window.currentSearchType = null;
 }
 
-// Export search results
+// Xuất kết quả tìm kiếm
 function exportSearchResults() {
     if (!window.currentSearchResults || window.currentSearchResults.length === 0) {
         alert('Không có kết quả để xuất');
@@ -1483,5 +1484,5 @@ function exportSearchResults() {
     alert('Đã xuất kết quả tìm kiếm thành công!');
 }
 
-// Initialize on page load
+// Khởi tạo khi trang được tải
 init();
