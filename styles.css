@@ -260,6 +260,32 @@ body {
     flex-direction: column;
 }
 
+.conversation-options {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #65676b;
+    opacity: 0;
+    transition: all 0.2s ease;
+}
+
+.conversation:hover .conversation-options {
+    opacity: 1;
+}
+
+.conversation-options:hover {
+    background: #e4e6eb;
+    color: #000;
+}
+
+.conversation-options i {
+    font-size: 16px;
+}
+
 .conversation-header {
     display: flex;
     justify-content: space-between;
