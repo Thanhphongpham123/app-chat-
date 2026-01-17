@@ -75,6 +75,25 @@ const CHAT_CATEGORIES = [
     { key: 'dong-nghiep', label: 'Đồng nghiệp', color: '#8e24aa' }
 ];
 
+const CHAT_THEMES = [
+    { id: 'default', name: 'Messenger', emoji: '💙', color: '#0084ff', gradient: 'linear-gradient(135deg, #0084ff 0%, #00a6ff 100%)', icons: ['💙', '💬', '✨', '⭐'] },
+    { id: 'love', name: 'Love', emoji: '❤️', color: '#e91e63', gradient: 'linear-gradient(135deg, #fa3e7c 0%, #ff6f9c 100%)', icons: ['❤️', '💕', '💖', '💗', '💘'] },
+    { id: 'sunset', name: 'Sunset', emoji: '🌅', color: '#ff6b6b', gradient: 'linear-gradient(135deg, #ff6b6b 0%, #ffa500 100%)', icons: ['🌅', '🌇', '☀️', '🌤️'] },
+    { id: 'tropical', name: 'Tropical', emoji: '🌴', color: '#00c9a7', gradient: 'linear-gradient(135deg, #00c9a7 0%, #845ec2 100%)', icons: ['🌴', '🌺', '🦜', '🍹'] },
+    { id: 'ocean', name: 'Ocean', emoji: '🌊', color: '#0088cc', gradient: 'linear-gradient(135deg, #006db3 0%, #0088cc 100%)', icons: ['🌊', '🐚', '🐠', '🐟', '⛵'] },
+    { id: 'berry', name: 'Berry', emoji: '🍇', color: '#7b2cbf', gradient: 'linear-gradient(135deg, #5a189a 0%, #9d4edd 100%)', icons: ['🍇', '🫐', '🍓', '💜'] },
+    { id: 'citrus', name: 'Citrus', emoji: '🍊', color: '#ff9500', gradient: 'linear-gradient(135deg, #ff6600 0%, #ffb84d 100%)', icons: ['🍊', '🍋', '🍌', '🥭'] },
+    { id: 'mint', name: 'Mint', emoji: '🌿', color: '#00d4aa', gradient: 'linear-gradient(135deg, #00b894 0%, #00d4aa 100%)', icons: ['🌿', '🍃', '🌱', '☘️'] },
+    { id: 'rose', name: 'Rose', emoji: '🌹', color: '#ff3d8f', gradient: 'linear-gradient(135deg, #ff0066 0%, #ff6bb5 100%)', icons: ['🌹', '🌺', '🌸', '🌷', '💐'] },
+    { id: 'lavender', name: 'Lavender', emoji: '💜', color: '#9b72cb', gradient: 'linear-gradient(135deg, #8b5fbf 0%, #c9a9e9 100%)', icons: ['💜', '🪻', '🦋', '✨'] },
+    { id: 'candy', name: 'Candy', emoji: '🍭', color: '#ff6ec7', gradient: 'linear-gradient(135deg, #ff48b0 0%, #ff8dd7 100%)', icons: ['🍭', '🍬', '🍫', '🧁', '🍰'] },
+    { id: 'fire', name: 'Fire', emoji: '🔥', color: '#ff4444', gradient: 'linear-gradient(135deg, #ff0000 0%, #ff6b35 100%)', icons: ['🔥', '🌶️', '💥', '⚡'] },
+    { id: 'aqua', name: 'Aqua', emoji: '💎', color: '#00d9ff', gradient: 'linear-gradient(135deg, #00b8d4 0%, #00e5ff 100%)', icons: ['💎', '💠', '🔷', '✨', '⭐'] },
+    { id: 'peach', name: 'Peach', emoji: '🍑', color: '#ffb088', gradient: 'linear-gradient(135deg, #ff9770 0%, #ffc5a8 100%)', icons: ['🍑', '🌸', '🌺', '🦩'] },
+    { id: 'midnight', name: 'Midnight', emoji: '🌙', color: '#1a1a2e', gradient: 'linear-gradient(135deg, #16213e 0%, #0f3460 100%)', icons: ['🌙', '⭐', '✨', '🌟', '💫'] },
+    { id: 'emerald', name: 'Emerald', emoji: '💚', color: '#10b981', gradient: 'linear-gradient(135deg, #059669 0%, #34d399 100%)', icons: ['💚', '💎', '🍀', '🌲'] }
+];
+
 // Bộ lọc khách hàng
 filterAllBtn.onclick = () => {
     conversationFilter = "all";
@@ -1643,6 +1662,14 @@ function processImageToSquare(src, size, callback) {
 // Hiển thị tin nhắn
 function renderMessages(messages) {
     messagesContainer.innerHTML = '';
+    
+    // Apply theme if exists
+    if (currentChat && currentChat.theme) {
+        const theme = CHAT_THEMES.find(t => t.id === currentChat.theme);
+        if (theme) {
+            updateChatTheme(theme);
+        }
+    }
 
     messages.forEach(msg => {
         if (!Array.isArray(msg.reactions)) msg.reactions = [];
@@ -1791,6 +1818,15 @@ function renderMessages(messages) {
 
             const bubble = document.createElement('div');
             bubble.className = 'message-bubble';
+            
+            // Apply theme to sent messages
+            if (group[0].sender === 'you' && currentChat && currentChat.theme) {
+                const theme = CHAT_THEMES.find(t => t.id === currentChat.theme);
+                if (theme) {
+                    bubble.style.background = theme.gradient;
+                    bubble.style.color = '#fff';
+                }
+            }
 
             // Hiển thị nhãn "Tin nhắn được chuyển tiếp" nếu là tin nhắn được chuyển tiếp
             if (msg.isForwarded) {
@@ -2721,6 +2757,9 @@ function attachEvents() {
             sendMessage();
         }
     });
+    
+    // Theme button
+    document.getElementById('themeBtn')?.addEventListener('click', openThemeModal);
     
     // Initialize sticker functionality
     initSticker();
@@ -3834,4 +3873,173 @@ function createVoiceMessageElement(msg) {
     voiceDiv.appendChild(audio);
     
     return voiceDiv;
+}
+
+// ============================================
+// THEME FUNCTIONS
+// ============================================
+
+function openThemeModal() {
+    if (!currentChat) {
+        showNotification('⚠️ Vui lòng chọn một cuộc hội thoại trước!');
+        return;
+    }
+    
+    const modal = document.getElementById('themeModal');
+    if (!modal) {
+        console.error('Theme modal not found');
+        return;
+    }
+    
+    const themeGrid = document.getElementById('themeGrid');
+    if (!themeGrid) {
+        console.error('Theme grid not found');
+        return;
+    }
+    
+    // Render theme options
+    themeGrid.innerHTML = '';
+    const currentTheme = currentChat?.theme || 'default';
+    
+    CHAT_THEMES.forEach(theme => {
+        const themeItem = document.createElement('div');
+        themeItem.className = `theme-item ${currentTheme === theme.id ? 'active' : ''}`;
+        themeItem.innerHTML = `
+            <div class="theme-emoji-box" style="background: ${theme.gradient};">
+                <span class="theme-emoji">${theme.emoji}</span>
+            </div>
+            ${currentTheme === theme.id ? '<div class="theme-check-icon"><i class="fas fa-check-circle"></i></div>' : ''}
+        `;
+        
+        themeItem.addEventListener('click', () => {
+            // Animate selection
+            document.querySelectorAll('.theme-item').forEach(item => item.classList.remove('active'));
+            themeItem.classList.add('active');
+            
+            // Apply theme with delay for animation
+            setTimeout(() => {
+                applyTheme(theme.id);
+            }, 200);
+        });
+        
+        themeGrid.appendChild(themeItem);
+    });
+    
+    // Show modal with animation
+    modal.style.display = 'flex';
+    setTimeout(() => modal.classList.add('show'), 10);
+}
+
+function closeThemeModal() {
+    const modal = document.getElementById('themeModal');
+    if (modal) {
+        modal.classList.remove('show');
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300);
+    }
+}
+
+function showThemeToast(message) {
+    const toast = document.getElementById('themeToast');
+    const toastMessage = document.getElementById('themeToastMessage');
+    
+    if (toast && toastMessage) {
+        toastMessage.textContent = message;
+        toast.classList.add('show');
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 2500);
+    }
+}
+
+function applyTheme(themeId) {
+    if (!currentChat) return;
+    
+    const theme = CHAT_THEMES.find(t => t.id === themeId);
+    if (!theme) return;
+    
+    // Save theme to current chat
+    currentChat.theme = themeId;
+    
+    // Save to localStorage
+    const cu = getCurrentUser();
+    if (cu) {
+        saveUserChats(cu, allChats);
+    }
+    
+    // Apply theme to UI
+    updateChatTheme(theme);
+    
+    // Re-render messages to apply theme
+    if (currentChat.messages) {
+        renderMessages(currentChat.messages);
+    }
+    
+    // Close modal
+    closeThemeModal();
+    
+    // Show toast notification
+    showThemeToast(`Đã áp dụng theme "${theme.name}"`);
+}
+
+function updateChatTheme(theme) {
+    const messagesContainer = document.getElementById('messagesContainer');
+    if (!messagesContainer) return;
+    
+    // Remove old theme icons
+    document.querySelectorAll('.theme-bg-icon').forEach(icon => icon.remove());
+    
+    // Apply theme background to messages container
+    messagesContainer.style.background = `linear-gradient(to bottom, rgba(255,255,255,0.85), rgba(255,255,255,0.90)), ${theme.gradient}`;
+    messagesContainer.style.position = 'relative';
+    
+    // Apply theme background to entire chat area
+    const chatArea = document.querySelector('.chat-area');
+    if (chatArea) {
+        chatArea.style.background = `linear-gradient(to bottom, rgba(255,255,255,0.85), rgba(255,255,255,0.90)), ${theme.gradient}`;
+        chatArea.style.position = 'relative';
+        
+        // Add decorative icons
+        if (theme.icons && theme.icons.length > 0) {
+            // Create multiple rows and columns of icons
+            const positions = [
+                { left: 5, top: 10 }, { left: 15, top: 20 }, { left: 25, top: 8 }, { left: 35, top: 25 },
+                { left: 45, top: 12 }, { left: 55, top: 30 }, { left: 65, top: 15 }, { left: 75, top: 22 },
+                { left: 85, top: 18 }, { left: 92, top: 28 }, { left: 8, top: 40 }, { left: 18, top: 50 },
+                { left: 28, top: 45 }, { left: 38, top: 55 }, { left: 48, top: 42 }, { left: 58, top: 60 },
+                { left: 68, top: 48 }, { left: 78, top: 65 }, { left: 88, top: 52 }, { left: 95, top: 70 },
+                { left: 10, top: 75 }, { left: 20, top: 85 }, { left: 30, top: 78 }, { left: 40, top: 90 },
+                { left: 50, top: 80 }, { left: 60, top: 92 }, { left: 70, top: 82 }, { left: 80, top: 88 }
+            ];
+            
+            positions.forEach((pos, index) => {
+                const icon = theme.icons[index % theme.icons.length];
+                const iconEl = document.createElement('div');
+                iconEl.className = 'theme-bg-icon';
+                iconEl.textContent = icon;
+                iconEl.style.left = `${pos.left}%`;
+                iconEl.style.top = `${pos.top}%`;
+                chatArea.appendChild(iconEl);
+            });
+        }
+    }
+    
+    // Apply theme to sent messages
+    const sentMessages = messagesContainer.querySelectorAll('.message-group.sent .message-bubble');
+    sentMessages.forEach(msg => {
+        msg.style.background = theme.gradient;
+        msg.style.color = '#fff';
+    });
+    
+    // Apply theme color to header
+    const chatHeader = document.querySelector('.chat-header');
+    if (chatHeader) {
+        chatHeader.style.borderBottom = `3px solid ${theme.color}`;
+        chatHeader.style.background = `linear-gradient(to right, rgba(255,255,255,0.90), rgba(255,255,255,0.85)), ${theme.gradient}`;
+    }
+    
+    // Store theme in data attribute for future messages
+    messagesContainer.setAttribute('data-theme', theme.id);
 }
