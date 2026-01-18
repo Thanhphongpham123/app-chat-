@@ -607,11 +607,13 @@ function renderConversations(chats) {
         div.style.position = 'relative';
         const category = CHAT_CATEGORIES.find(c => c.key === chat.category);
         div.innerHTML = `
+            ${category ? `<div style="position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: linear-gradient(135deg, ${category.color} 0%, ${category.color}dd 100%); box-shadow: 2px 0 6px rgba(0,0,0,0.15); z-index: 1;"></div>` : ''}
             <img src="${chat.avatar}" alt="" class="conversation-avatar">
             <div class="conversation-info">
                 <div class="conversation-header">
                     <span class="conversation-name">
                         ${chat.nickname || chat.name}
+                        ${category ? `<span style="display: inline-block; margin-left: 6px; padding: 2px 8px; background: ${category.color}; color: white; font-size: 10px; font-weight: 600; border-radius: 4px; text-transform: uppercase;">${category.label}</span>` : ''}
                         ${chat.unread > 0 ? `<span class="badge-unread">${chat.unread}</span>` : ''}
                     </span>
                     <span class="conversation-time">${chat.timestamp ? formatTimestamp(chat.timestamp) : ''}</span>
